@@ -101,7 +101,7 @@ class OneToOneAttackConfig(BaseConfig):
     def __init__(self):
         super(OneToOneAttackConfig, self).__init__()
 
-        dataset_path = '/sise/home/barasa/8_bit/demo/'
+        dataset_path = '/sise/home/barasa/8_bit_attack/demo/'
         attack_image_name = 'egyptian_cat.jpg'  # egyptian_cat.jpg
         self.attack_img_diff_path = os.path.join(dataset_path, attack_image_name)
         target_image_name = 'corgi.jpg'
