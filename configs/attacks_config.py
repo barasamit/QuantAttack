@@ -49,7 +49,7 @@ class BaseConfig:
         self.record_embedding_layer = True
         self.layers_to_record = ["down5_encode_0"]
         self.reduction_method = 'PCA'
-        self.output_path_for_reconstructions = "/sise/home/barasa/8_bit/output/"
+        self.output_path_for_reconstructions = os.path.join(ROOT,"output")
         self.save_reconstructions_as_jpg = True
         self.save_reconstructions_as_np = False
         self.loader_params = {
@@ -100,8 +100,9 @@ class BaseConfig:
 class OneToOneAttackConfig(BaseConfig):
     def __init__(self):
         super(OneToOneAttackConfig, self).__init__()
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        dataset_path = os.path.join(self.root_path, 'demo')
 
-        dataset_path = '/sise/home/barasa/8_bit_attack/demo/'
         attack_image_name = 'egyptian_cat.jpg'  # egyptian_cat.jpg
         self.attack_img_diff_path = os.path.join(dataset_path, attack_image_name)
         target_image_name = 'corgi.jpg'
