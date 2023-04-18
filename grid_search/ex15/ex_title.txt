@@ -1,0 +1,1 @@
+max from layer column -> list1.topk(5, dim=2)[0][0]

@@ -1,0 +1,5 @@
+VIT:
+  model_path: 'google/vit-base-patch16-224'
+  weights_path: 'add later'
+  input_size: 1600
+  output_size: 500

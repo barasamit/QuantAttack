@@ -1,0 +1,3 @@
+PGD:
+  module_name: 'attacks.projected_gradient_descent'
+  class_name: 'ProjectedGradientDescent'

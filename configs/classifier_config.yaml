@@ -1,0 +1,17 @@
+#epochs: 30
+#save_frequency: 5
+#evaluate_frequency: 100
+#criterion: nn.BCELoss()
+#optimizer: optim.Adam(self.model.parameters(), lr=0.01)
+#model_output_dir: '/dt/shabtaia/dt-fujitsu/Lensless_imaging/Models/Image_classifer/FLICKER'
+#pre_trained_resnet18: '/dt/shabtaia/dt-fujitsu/Lensless_imaging/Models/Image_classifer/FLICKER/resnet18_model_10.pt'
+#pre_trained_resnet34: '/dt/shabtaia/dt-fujitsu/Lensless_imaging/Models/Image_classifer/FLICKER/resnet34_model_15.pt'
+#pre_trained_DenseNet: '/dt/shabtaia/dt-fujitsu/Lensless_imaging/Models/Image_classifer/FLICKER/DenseNet_model_10.pt'
+#pretrained_model_arch: 'resnet18'
+#reconstruct_images: True
+#mode: 'evaluate'
+ResNet18:
+  model_arch: 'resnet18'
+  num_of_classes: 5
+  weights_path: "/dt/shabtaia/dt-fujitsu/Lensless_imaging/Models/Image_classifer/FLICKER/resnet18_model_best.pt"
+  transforms: transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])

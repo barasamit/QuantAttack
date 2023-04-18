@@ -1,0 +1,1 @@
+max from layer column -> split into 12 blocks -> apply weights -> 1,1,1,1,1,1,1,1,1,1,0,0

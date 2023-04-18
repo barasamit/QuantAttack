@@ -1,0 +1,30 @@
+(11): ViTLayer(
+)
+(attention): ViTAttention(
+    (attention): ViTSelfAttention(
+    )
+    (Layernorm_before): LayerNorm ((768,), eps-1e-12, elementwise_affine=True)
+
+    (query): Linear8bitLt (in_features=768, out_features=768, bias=True)
+    (key):   Linear8bitLt (in_features=768, out_features=768, bias=True)
+    (value): Linear8bitLt (in_features=768, out_features=768, bias=True)
+    (dropout):   Dropout (p=0.0, inplace=False)
+    )
+    
+    (output): VitselfOutput(
+    )
+    (dense): Linear8bitLt (in_features=768, out_features=768, bias=True) 
+    (dropout):Dropout (p=0.0, inplace=False)
+
+
+
+    (Layernorm_after): LayerNorm ((768,), eps=1e-12, elementwise_affine=True)
+    (intermediate): ViTIntermediate(
+    )
+    (dense): Linear8bitLt (in_features=768, out_features=3072, bias=True)
+    (intermediate_act_fn): GELUActivation()
+
+    (output): ViTOutput(
+    )
+    (dense): Linear8bitLt (in_features=3072, out_features=768, bias=True) 
+    (dropout): Dropout (p=0.0, inplace=False)
