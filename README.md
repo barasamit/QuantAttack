@@ -1,6 +1,11 @@
 # 8_bits_attack
 
-ADDS to site packages
+## run:
+1. one_to_one_attack.py
+2. many_to_many_attack.py
+
+
+## Adds to site packages:
 
 1.
 
