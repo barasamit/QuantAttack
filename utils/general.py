@@ -11,7 +11,28 @@ import cv2
 from sklearn import metrics
 
 
-def save_graph(matmul_lists, outliers_arr,iteration, ex=None, title=None, total_outliers=None):
+def print_data_frame(y):
+    data = np.array(y).reshape(12, 6)
+    df = pd.DataFrame(data)
+    df.index = ["Block " + str(i) for i in range(1, 13)]
+    df.columns = ["Layer " + str(i) for i in range(1, 7)]
+    print(df)
+
+
+def print_outliers(matmul_lists, outliers_arr):
+    y = []
+    for i, t in enumerate(matmul_lists):
+        if t.size()[2] == 768:
+            try:
+                y.append((len(outliers_arr[i]) / 768) * 100)
+            except:
+                print("Error")
+        else:
+            y.append((len(outliers_arr[i]) / 3072) * 100)
+    print_data_frame(y)
+
+
+def save_graph(matmul_lists, outliers_arr, iteration,max_iter, ex=None, title=None, total_outliers=None):
     y = []
     for i, t in enumerate(matmul_lists):
         if t.size()[2] == 768:
@@ -24,7 +45,7 @@ def save_graph(matmul_lists, outliers_arr,iteration, ex=None, title=None, total_
     # save bar plot
     x = [i for i in range(len(y))]
 
-    if iteration == 300 or iteration % 1000 == 0:
+    if iteration == max_iter or iteration % 1000 == 0:
         dir_path = f"/sise/home/barasa/8_bit/grid_search/{ex}/"
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
@@ -41,21 +62,11 @@ def save_graph(matmul_lists, outliers_arr,iteration, ex=None, title=None, total_
             with open(name_outliers, 'w') as f:
                 f.write(f'{total_outliers}')
 
-            data = np.array(y).reshape(12, 6)
-            df = pd.DataFrame(data)
-            df.index = ["Block " + str(i) for i in range(1, 13)]
-            df.columns = ["Layer " + str(i) for i in range(1, 7)]
-            print(df)
+            print_data_frame(y)
 
         else:
-            print(f"Directory {dir_path} already exists.")
-            data = np.array(y).reshape(12, 6)
-            df = pd.DataFrame(data)
-            df.index = ["Block " + str(i) for i in range(1, 13)]
-            df.columns = ["Layer " + str(i) for i in range(1, 7)]
-            print(df)
+            print_data_frame(y)
 
-  
 
 def init_seeds(seed=0):
     # Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html

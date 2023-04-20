@@ -42,7 +42,7 @@ class Attack:
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
                                  self.cfg['losses_config']['class_name'])(**self.cfg['loss_func_params'])
 
-        self.loss = Loss(self.model, [loss_func], "",self.cfg.attack_type, **self.cfg['loss_params'])
+        self.loss = Loss(self.model, [loss_func], "",self.cfg.attack_type,self.cfg.attack_params["max_iter"], **self.cfg['loss_params'])
         self.cfg['attack_params']['loss_function'] = self.loss.loss_gradient
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
@@ -148,8 +148,8 @@ class Attack:
         results['topk'] = int(topk)
 
         # # Calculate GPLOPs
-        results['adv']['GFLOPs'] = self.calc_flops(x_adv)
-        results['clean']['GFLOPs'] = self.calc_flops(x_clean)
+        # results['adv']['GFLOPs'] = self.calc_flops(x_adv)
+        # results['clean']['GFLOPs'] = self.calc_flops(x_clean)
 
         return self.dict_to_df(results)
 

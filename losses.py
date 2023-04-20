@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from main_ViT import hook_fn, input_arr, outliers_arr
 from transformers.models.vit.modeling_vit import before, after
-from utils.general import save_graph
+from utils.general import save_graph, print_outliers
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -16,7 +16,8 @@ import seaborn as sns
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn,attack_type, images_save_path=None, mask=None, weights=None, **kwargs) -> None:
+    def __init__(self, model, loss_fns, convert_fn, attack_type,max_iter, images_save_path=None, mask=None, weights=None,
+                 **kwargs) -> None:
         super().__init__()
         self.model = model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,6 +26,7 @@ class Loss:
         self.images_save_path = images_save_path
         self.mask = mask
         self.iteration = 0
+        self.max_iter = max_iter
         self.attack_type = attack_type
         if self.images_save_path is not None:
             Path(self.images_save_path).mkdir(parents=True, exist_ok=True)
@@ -32,8 +34,6 @@ class Loss:
             self.loss_weights = weights
         else:
             self.loss_weights = [1] * len(loss_fns)
-
-
 
     @staticmethod
     def get_blocks(matmul_lists):
@@ -102,7 +102,6 @@ class Loss:
         # list1_max = list1.topk(5, dim=2)[0]
         # list2_max = list2.max(dim=2)[0][:5]
 
-
         # Create a Boolean mask that selects values under the threshold
         threshold = 12
         mask1 = list1_max < threshold
@@ -132,12 +131,16 @@ class Loss:
         if self.attack_type == 'OneToOneAttack':
             ex = "ex40"
             title = "max from layer column -> list1.max(dim=2)[0] list2_max = list2.max(dim=2)[0][:9]"
-            save_graph(matmul_lists, outliers_arr,self.iteration, ex, title, total_outliers)
+            save_graph(matmul_lists, outliers_arr, self.iteration, ex, title, total_outliers, self.max_iter)
             # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
+        else:
+            if self.iteration == self.max_iter:
+                print()
+                print_outliers(matmul_lists, outliers_arr)
+                self.iteration = 0
 
         input_arr.clear()
         outliers_arr.clear()
-
 
         loss = torch.zeros(1, device="cuda")
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):

@@ -48,14 +48,14 @@ class ManyToManyAttack(Attack):
                                          {'cur': batch_id + 1, 'total': len(self.test_loader)})
 
             res = self.compute_success(attack_images, adv_x, batch_id, data[1])
-            results_combine = pd.concat([results_combine, res], axis=0) # combine results
+            results_combine = pd.concat([results_combine, res], axis=0)  # combine results
 
 
 def main():
     config_type = 'ManyToMany'
     cfg = config_dict[config_type]()
     attack = ManyToManyAttack(cfg)
-    attack.generate(100)
+    attack.generate(100)  # generate 100 batches
 
 
 def main_iter_2():
@@ -88,7 +88,7 @@ def main_iter_2():
         # if os.path.exists(attack.attack_dir):
         #     continue
 
-        attack.generate(100)
+        attack.generate(100)  # generate 100 batches
         print("#############################################")
 
 
@@ -121,7 +121,7 @@ def main_iter_inf():
         attack = ManyToManyAttack(cfg)
         if os.path.exists(attack.attack_dir): continue
         #
-        attack.generate(100)
+        attack.generate(100)  # generate 100 batches
         print("#############################################")
 
 
