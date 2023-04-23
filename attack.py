@@ -4,7 +4,7 @@ import torch
 import cv2
 # from utils.model_utils import get_lensless_model, get_classification_model
 from utils.model_utils import get_vit_model, get_vit_feature_extractor
-from main_ViT import outliers_arr
+from main_ViT import outliers_arr, hook_fn
 
 from utils.general import get_instance, save_class_to_file, crop_images
 from losses import Loss
@@ -31,6 +31,10 @@ class Attack:
         self.file_name = os.path.join(self.attack_dir, "results.csv")
 
         self.model = get_vit_model(cfg)
+        # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
+        for name, module in self.model.named_modules():
+            module.register_forward_hook(hook_fn)
+
         self.feature_extractor = get_vit_feature_extractor()
         self.clean_time = 0
         self.adv_time = 0

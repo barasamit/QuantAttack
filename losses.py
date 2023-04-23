@@ -3,8 +3,8 @@ import torch
 from torchvision import transforms
 import os
 from pathlib import Path
-from main_ViT import hook_fn, input_arr, outliers_arr
-from transformers.models.vit.modeling_vit import before, after
+from main_ViT import hook_fn, input_arr, outliers_arr, outliers_arr_local
+# from transformers.models.vit.modeling_vit import before, after
 from utils.general import save_graph, print_outliers
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +12,7 @@ from PIL import Image
 from torchvision.utils import save_image
 import random
 import seaborn as sns
-
+from utils.attack_utils import count_outliers
 
 class Loss:
 
@@ -75,7 +75,7 @@ class Loss:
         # Stack list to tensor
         list1 = torch.stack([tensor for tensor in matmul_lists if tensor.size() == (batch, 197, 768)])
         list2 = torch.stack([tensor for tensor in matmul_lists if tensor.size() == (batch, 197, 3072)])
-
+        # list2 = torch.zeros((batch,1,197,3072), device=matmul_lists[0].device)
         # Find the maximum value in each column
         # list1_max = torch.topk(list1.max(dim=2)[0],10)[0]
         # k = 10
@@ -103,7 +103,7 @@ class Loss:
         # list2_max = list2.max(dim=2)[0][:5]
 
         # Create a Boolean mask that selects values under the threshold
-        threshold = 12
+        threshold = 7
         mask1 = list1_max < threshold
         mask2 = list2_max < threshold
 
@@ -111,8 +111,8 @@ class Loss:
         selected_values1 = list1_max[mask1]
         selected_values2 = list2_max[mask2]
 
-        target1 = torch.full_like(selected_values1, 70)
-        target2 = torch.full_like(selected_values2, 70)
+        target1 = torch.full_like(selected_values1, 6)
+        target2 = torch.full_like(selected_values2, 6)
 
         return selected_values1, selected_values2, target1, target2
 
@@ -127,6 +127,8 @@ class Loss:
         self.iteration += 1
         list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists, self.iteration)
         total_outliers = sum([len(t) for t in outliers_arr])
+        local_total_outliers = count_outliers(outliers_arr_local, threshold=6)
+        assert total_outliers == local_total_outliers
 
         if self.attack_type == 'OneToOneAttack':
             ex = "ex40"
