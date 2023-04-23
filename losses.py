@@ -6,6 +6,8 @@ from pathlib import Path
 from main_ViT import hook_fn, input_arr, outliers_arr
 from transformers.models.vit.modeling_vit import before, after
 from utils.general import save_graph, print_outliers
+from utils.losses_utils import apply_weights
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -16,7 +18,8 @@ import seaborn as sns
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn, attack_type,max_iter, images_save_path=None, mask=None, weights=None,
+    def __init__(self, model, loss_fns, convert_fn, attack_type, max_iter, images_save_path=None, mask=None,
+                 weights=None,
                  **kwargs) -> None:
         super().__init__()
         self.model = model
@@ -36,71 +39,44 @@ class Loss:
             self.loss_weights = [1] * len(loss_fns)
 
     @staticmethod
-    def get_blocks(matmul_lists):
-        b1 = matmul_lists[0:6]
-        b2 = matmul_lists[6:12]
-        b3 = matmul_lists[12:18]
-        b4 = matmul_lists[18:24]
-        b5 = matmul_lists[24:30]
-        b6 = matmul_lists[30:36]
-        b7 = matmul_lists[36:42]
-        b8 = matmul_lists[42:48]
-        b9 = matmul_lists[48:54]
-        b10 = matmul_lists[54:60]
-        b11 = matmul_lists[60:66]
-        b12 = matmul_lists[66:72]
+    def get_topk_max_values(list1, list2, choice=0, k=1):
 
-        return b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12
+        if choice == 0:
+            list1_max = list1.max(dim=2)[0]
+            list2_max = list2.max(dim=2)[0]
+
+        elif choice == 1:
+            list1_max = torch.topk(list1.max(dim=2)[0], k=k)[0]
+            topk_values, _ = torch.topk(list2.view(-1, 3072), k=k, dim=0)
+            list2_max = topk_values.view(k, 3072)
+
+        elif choice == 2:
+            _, max_indices = torch.topk(list1, k=k, dim=2)
+            list1_max = torch.gather(list1, 2, max_indices)
+            _, max_indices = torch.topk(list2, k=k, dim=2)
+            list2_max = torch.gather(list2, 2, max_indices)
+
+        elif choice == 3:
+            list1_max = list1.topk(k, dim=2)[0]
+            list2_max = list2.topk(k, dim=2)[0]
+        else:
+            raise ValueError("Invalid choice. Choose between 1, 2 or 3.")
+
+        return list1_max, list2_max
 
     @staticmethod
     def get_input_targeted(matmul_lists, iter):
         batch = matmul_lists[0].shape[0]
 
-        # Get blocks
-        # b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12 = Loss.get_blocks(matmul_lists)
-        # Get weights
-        # w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12 =1,1,1,1,1,1,1,1,1,1,1,1
-        # apply weights
-        # matmul_lists = b1+b2+b3+b4+b5+b6+b7+b8+b9+b10+b11+b12
-        # mul_tensors_by_scalar = lambda tensor_list, scalar: [tensor.mul(scalar) for tensor in tensor_list]
-        # # mul_tensors_by_scalar = lambda tensor_list, scalar: [tensor.mul(scalar - i) for i, tensor in enumerate(tensor_list)]
-        # matmul_lists = mul_tensors_by_scalar(b1, w1) + mul_tensors_by_scalar(b2, w2) + mul_tensors_by_scalar(b3,
-        #                                                                                                      w3) + mul_tensors_by_scalar(
-        #     b4, w4) + mul_tensors_by_scalar(b5, w5) + mul_tensors_by_scalar(b6, w6) + mul_tensors_by_scalar(b7,
-        #                                                                                                     w7) + mul_tensors_by_scalar(
-        #     b8, w8) + mul_tensors_by_scalar(b9, w9) + mul_tensors_by_scalar(b10, w10) + mul_tensors_by_scalar(b11,
-        #                                                                                                       w11) + mul_tensors_by_scalar(
-        #     b12, w12)
+        matmul_lists = apply_weights(matmul_lists)
 
         # Stack list to tensor
         list1 = torch.stack([tensor for tensor in matmul_lists if tensor.size() == (batch, 197, 768)])
         list2 = torch.stack([tensor for tensor in matmul_lists if tensor.size() == (batch, 197, 3072)])
 
-        # Find the maximum value in each column
-        # list1_max = torch.topk(list1.max(dim=2)[0],10)[0]
-        # k = 10
-        # topk_values, _ = torch.topk(list1.view(-1, 768), k=k,
-        #                             dim=0)  # Compute the top k maximum values across all batches and sequences
-        # list1_max = topk_values.view(k, 768)  # Reshape the tensor to have k rows and 768 columns
-        #
-        # topk_values, _ = torch.topk(list2.view(-1, 3072), k=k,
-        #                             dim=0)  # Compute the top k maximum values across all batches and sequences
-        # list2_max = topk_values.view(k, 3072)  # Reshape
-
-        # get top k from each column
-        # k = 1
-        # _, max_indices = torch.topk(list1, k=k, dim=2)
-        # list1_max = torch.gather(list1, 2, max_indices)
-        #
-        # _, max_indices = torch.topk(list2, k=k, dim=2)
-        # list2_max = torch.gather(list2, 2, max_indices)
-
-        # Find the maximum value in each column
-        list1_max = list1.max(dim=2)[0]
-        list2_max = list2.max(dim=2)[0]
-        # list1_max = list1.topk(5, dim=2)[0]
-        # list1_max = list1.topk(5, dim=2)[0]
-        # list2_max = list2.max(dim=2)[0][:5]
+        choice = 0
+        k = 1
+        list1_max, list2_max = Loss.get_topk_max_values(list1, list2, choice, k)
 
         # Create a Boolean mask that selects values under the threshold
         threshold = 12

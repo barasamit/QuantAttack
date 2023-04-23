@@ -29,6 +29,7 @@ class BaseConfig:
         self._set_dataset(dataset_name)
 
         self.loss_func_params = {'MSE': {}}
+
         self.loss_params = {
             'weights': [1]
         }
@@ -46,12 +47,7 @@ class BaseConfig:
         }
 
         self.demo_mode = 'predict_one'  # 'predict_one' or 'predict_many'
-        self.record_embedding_layer = True
-        self.layers_to_record = ["down5_encode_0"]
-        self.reduction_method = 'PCA'
-        self.output_path_for_reconstructions = os.path.join(ROOT,"output")
-        self.save_reconstructions_as_jpg = True
-        self.save_reconstructions_as_np = False
+
         self.loader_params = {
             'batch_size': 8,
             'num_workers': 4
