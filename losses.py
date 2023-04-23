@@ -3,7 +3,7 @@ import torch
 from torchvision import transforms
 import os
 from pathlib import Path
-from main_ViT import hook_fn, input_arr, outliers_arr
+from main_ViT import hook_fn, input_arr, outliers_arr,outliers_arr_local
 from transformers.models.vit.modeling_vit import before, after
 from utils.general import save_graph, print_outliers
 from utils.losses_utils import apply_weights
@@ -14,7 +14,7 @@ from PIL import Image
 from torchvision.utils import save_image
 import random
 import seaborn as sns
-
+from utils.attack_utils import count_outliers
 
 class Loss:
 
@@ -103,6 +103,8 @@ class Loss:
         self.iteration += 1
         list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists, self.iteration)
         total_outliers = sum([len(t) for t in outliers_arr])
+        local_total_outliers = count_outliers(outliers_arr_local, threshold=6)
+        assert total_outliers == local_total_outliers
 
         if self.attack_type == 'OneToOneAttack':
             ex = "ex40"
