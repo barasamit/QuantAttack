@@ -18,6 +18,8 @@ Add to Class MatMul8bitLt forward function the following code in blue,
 
 Change the root_path to yours.
 
+<img src="https://user-images.githubusercontent.com/96978735/233988476-b8aba004-c958-4aa5-8368-9fbd663cbf0f.png" alt="example image" height="300" width="500">
+
 
 <img width="347" alt="image" src="https://user-images.githubusercontent.com/96978735/233988476-b8aba004-c958-4aa5-8368-9fbd663cbf0f.png">
 
