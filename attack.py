@@ -1,17 +1,11 @@
 import pandas as pd
 import os
 import torch
-import cv2
-# from utils.model_utils import get_lensless_model, get_classification_model
 from utils.model_utils import get_vit_model, get_vit_feature_extractor
-from main_ViT import outliers_arr, hook_fn
+from utils.init_collect_arrays import outliers_arr, hook_fn
 
-from utils.general import get_instance, save_class_to_file, crop_images
+from utils.general import get_instance
 from losses import Loss
-from utils.general import preplot, process_imgs, auroc_aupr_scores
-import numpy as np
-import time
-from statistics import mean
 
 from torch.profiler import profile, record_function, ProfilerActivity
 from fvcore.nn import flop_count
@@ -45,16 +39,16 @@ class Attack:
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
                                  self.cfg['losses_config']['class_name'])(**self.cfg['loss_func_params'])
 
-        self.loss = Loss(self.model, [loss_func], "",self.cfg.attack_type,self.cfg.attack_params["max_iter"], **self.cfg['loss_params'])
+        self.loss = Loss(self.model, [loss_func], "",self.cfg, **self.cfg['loss_params'])
         self.cfg['attack_params']['loss_function'] = self.loss.loss_gradient
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
 
         # save_class_to_file(self.cfg, self.cfg['current_dir'])
 
-        self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        self.preds_clean = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.preds_clean = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
 
     def get_name(self):
         a = self.cfg.attack_params
@@ -64,7 +58,6 @@ class Attack:
     def make_dir(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
-
 
 
     def register_loss_values(self, batch_id):
@@ -153,35 +146,3 @@ class Attack:
         # results['clean']['GFLOPs'] = self.calc_flops(x_clean)
 
         return self.dict_to_df(results)
-
-    def calculate_final_metrics(self):
-        metrics_df = pd.read_csv(os.path.join(self.cfg['current_dir'], 'acc_results.csv'),
-                                 header=0,
-                                 index_col=0)
-        clean_acc_mean = metrics_df['clean_acc'].mean()
-        ut_acc_mean = metrics_df['ut_adv_acc'].mean()
-        t_acc_mean = metrics_df['t_adv_acc'].mean()
-        auroc_clean = auroc_aupr_scores(np.stack(list(self.gts.values()), axis=1),
-                                        np.stack(list(self.preds_clean.values()), axis=1),
-                                        average_types=['macro'])['macro']
-        auroc_adv = auroc_aupr_scores(np.stack(list(self.gts.values()), axis=1),
-                                      np.stack(list(self.preds_adv.values()), axis=1),
-                                      average_types=['macro'])['macro']
-
-        with open(os.path.join(self.cfg['current_dir'], 'final_results.txt'), 'w') as f:
-            f.write('Clean Accuracy,Source Label Accuracy,Target Label Accuracy,Clean AuROC,Adv Auroc\n')
-            f.write(f'{clean_acc_mean},{ut_acc_mean},{t_acc_mean},{auroc_clean},{auroc_adv}')
-
-        return clean_acc_mean, ut_acc_mean, t_acc_mean, auroc_clean, auroc_adv
-
-    def print_metrics(self, clean_acc_mean, ut_acc_mean, t_acc_mean, auroc_clean, auroc_adv):
-        print('Average accuracy for clean images with source labels: {}%'.format(
-            str(round(clean_acc_mean * 100, 2))))
-        print('Average accuracy for adv images with source labels: {}%'.format(
-            str(round(ut_acc_mean * 100, 2))))
-        print('Average accuracy for adv images with target labels: {}%'.format(
-            str(round(t_acc_mean * 100, 2))))
-        print('AuROC for clean images with source labels: {}%'.format(
-            str(round(auroc_clean * 100, 2))))
-        print('AuROC for adv images with source labels: {}%'.format(
-            str(round(auroc_adv * 100, 2))))

@@ -1,13 +1,6 @@
-import torch
 from PIL import Image
-import matplotlib.pyplot as plt
-
 from configs.attacks_config import config_dict
-from utils.general import load_npy_image_to_tensor
 from attack import Attack
-# from visualization.plots import loss_plot
-import seaborn as sns
-import pandas as pd
 
 
 class OneToOneAttack(Attack):
@@ -21,7 +14,6 @@ class OneToOneAttack(Attack):
 
     def generate(self):
         _ = self.attack.generate(self.attack_image_diff.to("cuda"), self.pred_target, {'cur': 1, 'total': 1})
-
 
 
 def main():

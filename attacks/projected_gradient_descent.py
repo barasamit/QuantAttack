@@ -32,6 +32,7 @@ class ProjectedGradientDescent:
         self.outliers_num = 0
 
     def generate(self, inputs, targets, batch_info):
+
         return self._generate_batch(inputs, targets, batch_info)
 
     def _generate_batch(self, inputs, targets, batch_info):
@@ -41,8 +42,6 @@ class ProjectedGradientDescent:
                             desc='Batch {}/{} '.format(batch_info['cur'], batch_info['total']))
         self.loss_values = []
         for i, _ in enumerate(progress_bar):
-            # if i == 1 or i == self.max_iter - 1:
-            #     print(f"number of outlier in the {i} iteration: {self.outliers_num}")
             adv_x = self._compute(adv_x, inputs, targets, momentum)
             progress_bar.set_postfix_str(
                 'Batch Loss: {:.4} , number of outliers {}'.format(self.loss_values[-1], self.outliers_num))
@@ -59,7 +58,6 @@ class ProjectedGradientDescent:
 
     def _compute_perturbation(self, adv_x, targets, momentum):
         tol = 10e-8
-
         grad, loss_value, self.outliers_num = self.loss_function(adv_x, targets)
         self.loss_values.append(loss_value)
         grad = grad * (1 - 2 * int(self.targeted))

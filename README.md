@@ -7,17 +7,7 @@
 
 ## Adds to site packages:
 
-1.
 
-Go to your site package of /transformers/bitsandbytes/
-
-"/sise/home/barasa/.conda/envs/bnb/lib/python3.10/site-packages/transformers/bitsandbytes/"  
-  
-Add to function replace_8bit_linear the following code in blue,
-
-Change the root_path to yours.  
-  
-![image](https://user-images.githubusercontent.com/96978735/232737835-242a8483-9754-437f-9ef6-80904fba46ef.png)
 2.
 
 Go to your site package of bitsandbytes/autograd/_functions.py
@@ -28,4 +18,8 @@ Add to Class MatMul8bitLt forward function the following code in blue,
 
 Change the root_path to yours.
 
-![image](https://user-images.githubusercontent.com/96978735/232738006-461bdacc-b9bc-4390-9731-8b7b28b1108b.png)
+<img src="https://user-images.githubusercontent.com/96978735/233988476-b8aba004-c958-4aa5-8368-9fbd663cbf0f.png" alt="example image" height="200" width="600">
+
+<img src="https://user-images.githubusercontent.com/96978735/233988593-ed0faba5-95f8-4388-9894-8d8dd91d1734.png" alt="example image" height="100" width="600">
+
+<img src="https://user-images.githubusercontent.com/96978735/233989233-a307bc61-b641-43ba-a83e-3a975bde8065.png" alt="example image" height="100" width="600">
