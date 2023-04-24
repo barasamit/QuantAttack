@@ -46,9 +46,9 @@ class Attack:
 
         # save_class_to_file(self.cfg, self.cfg['current_dir'])
 
-        self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        self.preds_clean = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.preds_clean = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
+        # self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
 
     def get_name(self):
         a = self.cfg.attack_params
@@ -58,7 +58,6 @@ class Attack:
     def make_dir(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
-
 
 
     def register_loss_values(self, batch_id):

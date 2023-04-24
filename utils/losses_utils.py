@@ -1,9 +1,6 @@
 import torch
 
 
-# import lpips
-
-
 class MSE:
     def __init__(self, **kwargs) -> None:
         super().__init__()
@@ -40,12 +37,12 @@ def get_blocks(matmul_lists):
     return b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12
 
 
-def apply_weights(matmul_lists):
+def apply_weights(matmul_lists, cfg):
     # Get blocks
     b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12 = get_blocks(matmul_lists)
 
     # Get weights
-    w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12 = [1] * 12
+    w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12 = cfg.blocks_weights
 
     # Apply weights
     mul_tensors_by_scalar = lambda tensor_list, scalar: [tensor.mul(scalar) for tensor in tensor_list]
@@ -61,3 +58,8 @@ def apply_weights(matmul_lists):
                                                                                                           w11) + mul_tensors_by_scalar(
         b12, w12)
     return tensor_with_w8
+
+
+def clear_lists(*lists):
+    for lst in lists:
+        lst.clear()

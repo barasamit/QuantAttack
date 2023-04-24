@@ -23,7 +23,7 @@ class BaseConfig:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         model_name = 'VIT'  # see configs/model_config.yaml for other options
-        self.estimator_name = 'ResNet18'
+        # self.estimator_name = 'ResNet18'
 
         dataset_name = 'imagenet'
         self._set_dataset(dataset_name)
@@ -54,17 +54,19 @@ class BaseConfig:
         }
 
         self.model_threshold = 6
+        self.model_threshold_dest = 12
+        self.target = 70
+
         self.num_topk_values = 1
         self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
+
+        self.blocks_weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # 12 blocks in VIT
 
         self._set_model(model_name)
         self._set_losses(self.loss_func_params)
 
         with open(ROOT / 'configs/attack_config.yaml', 'r') as stream:
             self.attack_config = yaml.safe_load(stream)[self.attack_name]
-        with open(ROOT / 'configs/classifier_config.yaml', 'r') as stream:
-            self.estimator_config = yaml.safe_load(stream)[self.estimator_name]
-        self.estimator_config.update({'device': self.device, 'mode': 'eval'})
 
         self._update_current_dir()
 
