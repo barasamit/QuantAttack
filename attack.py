@@ -40,7 +40,6 @@ class Attack:
         self.adv_time = 0
         self.outliers = []
 
-        loss_funcs = []
         s = ''
         print('Using the following distance functions in the loss:' + s)
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
@@ -66,9 +65,7 @@ class Attack:
         if not os.path.exists(path):
             os.makedirs(path)
 
-    def get_name_csv(self):
 
-        return "results.csv"
 
     def register_loss_values(self, batch_id):
         batch_result = pd.Series([f'batch{batch_id}'] + self.attack.loss_values)

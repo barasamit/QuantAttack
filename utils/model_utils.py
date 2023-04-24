@@ -7,7 +7,8 @@ from transformers import AutoImageProcessor, ViTForImageClassification
 def get_vit_model(cfg):
 
     model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",
-                                                      load_in_8bit=True)
+                                                      load_in_8bit=True,load_in_8bit_threshold=6)
+
     return model
 
 
@@ -38,3 +39,4 @@ def freeze_bn(m):
 def unfreeze_bn(m):
     if isinstance(m, nn.BatchNorm2d):
         m.train()
+
