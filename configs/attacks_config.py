@@ -40,7 +40,7 @@ class BaseConfig:
             'eps': 500,
             'eps_step': 1,
             'decay': None,
-            'max_iter': 300,
+            'max_iter': 100,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device
@@ -52,6 +52,8 @@ class BaseConfig:
             'batch_size': 8,
             'num_workers': 4
         }
+
+        self.model_threshold = 6
 
         self._set_model(model_name)
         self._set_losses(self.loss_func_params)

@@ -3,7 +3,7 @@ import torch
 from torchvision import transforms
 import os
 from pathlib import Path
-from main_ViT import hook_fn, input_arr, outliers_arr,outliers_arr_local
+from main_ViT import hook_fn, input_arr, outliers_arr, outliers_arr_local
 from transformers.models.vit.modeling_vit import before, after
 from utils.general import save_graph, print_outliers
 from utils.losses_utils import apply_weights
@@ -16,12 +16,14 @@ import random
 import seaborn as sns
 from utils.attack_utils import count_outliers
 
+
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn, attack_type, max_iter, images_save_path=None, mask=None,
+    def __init__(self, model, loss_fns, convert_fn,  cfg, images_save_path=None, mask=None,
                  weights=None,
                  **kwargs) -> None:
         super().__init__()
+        self.cfg = cfg
         self.model = model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fns = loss_fns
@@ -29,8 +31,8 @@ class Loss:
         self.images_save_path = images_save_path
         self.mask = mask
         self.iteration = 0
-        self.max_iter = max_iter
-        self.attack_type = attack_type
+        self.max_iter = cfg.attack_params["max_iter"]
+        self.attack_type = cfg.attack_type
         if self.images_save_path is not None:
             Path(self.images_save_path).mkdir(parents=True, exist_ok=True)
         if weights is not None:
@@ -103,13 +105,14 @@ class Loss:
         self.iteration += 1
         list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists, self.iteration)
         total_outliers = sum([len(t) for t in outliers_arr])
-        local_total_outliers = count_outliers(outliers_arr_local, threshold=6)
-        assert total_outliers == local_total_outliers
+        local_total_outliers = count_outliers(outliers_arr_local, threshold= self.cfg.model_threshold)
+        # assert total_outliers == local_total_outliers
 
         if self.attack_type == 'OneToOneAttack':
             ex = "ex40"
             title = "max from layer column -> list1.max(dim=2)[0] list2_max = list2.max(dim=2)[0][:9]"
-            save_graph(matmul_lists, outliers_arr, self.iteration, ex, title, total_outliers, self.max_iter)
+            save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, local_total_outliers)
+            # save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None)
             # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
         else:
             if self.iteration == self.max_iter:
@@ -117,6 +120,7 @@ class Loss:
                 print_outliers(matmul_lists, outliers_arr)
                 self.iteration = 0
 
+        outliers_arr_local.clear()
         input_arr.clear()
         outliers_arr.clear()
 
@@ -130,4 +134,4 @@ class Loss:
         self.model.zero_grad()
         loss.backward()
         grads = x_grad.grad
-        return grads, loss.item(), total_outliers
+        return grads, loss.item(), local_total_outliers
