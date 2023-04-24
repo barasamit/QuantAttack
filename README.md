@@ -22,4 +22,4 @@ Change the root_path to yours.
 
 <img width="335" alt="image" src="https://user-images.githubusercontent.com/96978735/233988593-ed0faba5-95f8-4388-9894-8d8dd91d1734.png">
 
-<img width="233" alt="image" src="https://user-images.githubusercontent.com/96978735/233989233-a307bc61-b641-43ba-a83e-3a975bde8065.png">
+<img width="350" alt="image" src="https://user-images.githubusercontent.com/96978735/233989233-a307bc61-b641-43ba-a83e-3a975bde8065.png">
