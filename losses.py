@@ -1,25 +1,15 @@
-import pandas as pd
 import torch
-from torchvision import transforms
-import os
 from pathlib import Path
-from main_ViT import hook_fn, input_arr, outliers_arr, outliers_arr_local
-from transformers.models.vit.modeling_vit import before, after
+from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local
 from utils.general import save_graph, print_outliers
 from utils.losses_utils import apply_weights
 
-import matplotlib.pyplot as plt
-import numpy as np
-from PIL import Image
-from torchvision.utils import save_image
-import random
-import seaborn as sns
 from utils.attack_utils import count_outliers
 
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn,  cfg, images_save_path=None, mask=None,
+    def __init__(self, model, loss_fns, convert_fn, cfg, images_save_path=None, mask=None,
                  weights=None,
                  **kwargs) -> None:
         super().__init__()
@@ -44,8 +34,8 @@ class Loss:
     def get_topk_max_values(list1, list2, choice=0, k=1):
 
         if choice == 0:
-            list1_max = list1.max(dim=2)[0]
-            list2_max = list2.max(dim=2)[0]
+            list1_max = list1.topk(k, dim=2)[0]
+            list2_max = list2.topk(k, dim=2)[0]
 
         elif choice == 1:
             list1_max = torch.topk(list1.max(dim=2)[0], k=k)[0]
@@ -58,16 +48,12 @@ class Loss:
             _, max_indices = torch.topk(list2, k=k, dim=2)
             list2_max = torch.gather(list2, 2, max_indices)
 
-        elif choice == 3:
-            list1_max = list1.topk(k, dim=2)[0]
-            list2_max = list2.topk(k, dim=2)[0]
         else:
             raise ValueError("Invalid choice. Choose between 1, 2 or 3.")
 
         return list1_max, list2_max
 
-    @staticmethod
-    def get_input_targeted(matmul_lists, iter):
+    def get_input_targeted(self, matmul_lists):
         batch = matmul_lists[0].shape[0]
 
         matmul_lists = apply_weights(matmul_lists)
@@ -77,8 +63,8 @@ class Loss:
         list2 = torch.stack([tensor for tensor in matmul_lists if tensor.size() == (batch, 197, 3072)])
 
         choice = 0
-        k = 1
-        list1_max, list2_max = Loss.get_topk_max_values(list1, list2, choice, k)
+
+        list1_max, list2_max = Loss.get_topk_max_values(list1, list2, choice, self.cfg.num_topk_values)
 
         # Create a Boolean mask that selects values under the threshold
         threshold = 12
@@ -103,15 +89,15 @@ class Loss:
         # Save the image
 
         self.iteration += 1
-        list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists, self.iteration)
+        list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists)
         total_outliers = sum([len(t) for t in outliers_arr])
-        local_total_outliers = count_outliers(outliers_arr_local, threshold= self.cfg.model_threshold)
+        local_total_outliers = count_outliers(outliers_arr_local, threshold=self.cfg.model_threshold)
         # assert total_outliers == local_total_outliers
 
         if self.attack_type == 'OneToOneAttack':
             ex = "ex40"
             title = "max from layer column -> list1.max(dim=2)[0] list2_max = list2.max(dim=2)[0][:9]"
-            save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, local_total_outliers)
+            save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, total_outliers)
             # save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None)
             # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
         else:
@@ -134,4 +120,4 @@ class Loss:
         self.model.zero_grad()
         loss.backward()
         grads = x_grad.grad
-        return grads, loss.item(), local_total_outliers
+        return grads, loss.item(), total_outliers

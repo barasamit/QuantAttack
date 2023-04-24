@@ -1,18 +1,9 @@
-import json
 import pandas as pd
-import numpy as np
-from transformers import AutoImageProcessor, ViTForImageClassification
-import torch
 # from datasets import load_dataset
 import torch
-from torchvision import models, datasets, transforms
-from sklearn.metrics import accuracy_score
 from transformers import ViTFeatureExtractor, ViTForImageClassification
 from dataloader.general_loader import *
-from tqdm import tqdm
-import time
-from main_ViT import outliers_arr
-from statistics import mean
+from utils.init_collect_arrays import outliers_arr
 from torch.profiler import profile, record_function, ProfilerActivity
 
 

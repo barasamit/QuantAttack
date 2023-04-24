@@ -54,6 +54,8 @@ class BaseConfig:
         }
 
         self.model_threshold = 6
+        self.num_topk_values = 1
+        self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
 
         self._set_model(model_name)
         self._set_losses(self.loss_func_params)

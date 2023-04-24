@@ -1,12 +1,9 @@
 import torch
 from PIL import Image
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from configs.attacks_config import config_dict
 from utils.model_utils import get_vit_model, get_vit_feature_extractor
-from utils.general import load_npy_image_to_tensor, get_instance, preplot
-from main_ViT import hook_fn, input_arr
+from utils.general import get_instance
 
 from losses import Loss
 
