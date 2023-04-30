@@ -41,12 +41,13 @@ class BaseConfig:
             'eps': 500,
             'eps_step': 1,
             'decay': None,
-            'max_iter': 100,
+            'max_iter': 300,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device
         }
         self.max_iter = self.attack_params['max_iter']
+        self.use_scheduler = False
         self.scheduler = 0.5
         # print key and value for attack parameters
 
