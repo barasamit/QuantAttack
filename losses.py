@@ -2,14 +2,13 @@ import torch
 from pathlib import Path
 from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local
 from utils.general import save_graph, print_outliers
-from utils.losses_utils import apply_weights, clear_lists
 
 from utils.attack_utils import count_outliers
 
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn, cfg, images_save_path=None, mask=None,
+
                  weights=None,
                  **kwargs) -> None:
         super().__init__()
@@ -56,15 +55,6 @@ class Loss:
     def get_input_targeted(self, matmul_lists):
         batch = matmul_lists[0].shape[0]
 
-        # Apply weights
-        lists_with_weights = apply_weights(matmul_lists, self.cfg)
-
-        # Stack list to tensor
-        list1 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, 197, 768)])
-        list2 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, 197, 3072)])
-
-        # Get the top k values
-        list1_max, list2_max = Loss.get_topk_max_values(list1, list2, self.cfg.choice, self.cfg.num_topk_values)
 
         # Create a Boolean mask that selects values under the threshold
         threshold = self.cfg.model_threshold_dest
