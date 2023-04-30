@@ -30,9 +30,16 @@ class ProjectedGradientDescent:
         self.clip_min = torch.tensor(clip_values[0], dtype=torch.float32, device=self.device)
         self.clip_max = torch.tensor(clip_values[1], dtype=torch.float32, device=self.device)
         self.outliers_num = 0
+        self.temp_max_outliers_num = 0
+        self.max_adv = None
+        self.batc_id = 0
 
     def generate(self, inputs, targets, batch_info):
-
+        # self._generate_batch(inputs, targets, batch_info)
+        # res = self.max_adv.clone()
+        # self.max_adv = None
+        # self.batc_id = 0
+        # self.temp_max_outliers_num = 0
         return self._generate_batch(inputs, targets, batch_info)
 
     def _generate_batch(self, inputs, targets, batch_info):
@@ -42,10 +49,23 @@ class ProjectedGradientDescent:
                             desc='Batch {}/{} '.format(batch_info['cur'], batch_info['total']))
         self.loss_values = []
         for i, _ in enumerate(progress_bar):
+            temp_adv_x = adv_x.clone()
             adv_x = self._compute(adv_x, inputs, targets, momentum)
             progress_bar.set_postfix_str(
-                'Batch Loss: {:.4} , number of outliers {}'.format(self.loss_values[-1], self.outliers_num))
+                'Batch Loss: {:.4} , number of outliers {}'.format(self.loss_values[-1],
+                                                                   self.outliers_num,
+                                                                   ))
+            # self.batc_id += 1
+            # if self.outliers_num > self.temp_max_outliers_num and self.batc_id > 1:
+            #     self.temp_max_outliers_num = self.outliers_num
+            #     self.max_adv = temp_adv_x.clone()
 
+            # # multiple tensor in scalar
+            #
+            # if self.batc_id % 200 == 0:
+            #     print()
+            #     print(f" eps_step: {self.eps_step}")
+            #     self.eps_step = 0.8 * self.eps_step
         return adv_x
 
     def _compute(self, x_adv, x_init, targets, momentum):

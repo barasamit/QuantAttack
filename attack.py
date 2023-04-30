@@ -22,7 +22,7 @@ class Attack:
 
         self.attack_dir = os.path.join(self.cfg['current_dir'], self.get_name())
         self.make_dir(self.attack_dir)
-        self.file_name = os.path.join(self.attack_dir, "results.csv")
+        self.file_name = os.path.join(self.attack_dir, f"results.csv")
 
         self.model = get_vit_model(cfg)
         # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
@@ -35,7 +35,6 @@ class Attack:
         self.outliers = []
 
         s = ''
-        print('Using the following distance functions in the loss:' + s)
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
                                  self.cfg['losses_config']['class_name'])(**self.cfg['loss_func_params'])
 

@@ -84,7 +84,7 @@ class Loss:
     def loss_gradient(self, x, y):
         input_arr.clear()
         x_grad = x.clone().detach().requires_grad_(True)
-        pred = self.model(x_grad)
+        pred = self.model(x_grad).logits
         matmul_lists = input_arr.copy()
         self.iteration += 1
 
@@ -104,12 +104,12 @@ class Loss:
             save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, total_outliers)
             # save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None)
             # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
-        else:
-            if self.iteration == self.max_iter:
-                print()
-                print_outliers(matmul_lists, outliers_arr)
-                self.iteration = 0
-
+        # else:
+        #     if self.iteration == self.max_iter or self.iteration % 2000 == 0 and self.iteration > 1000000000:
+        #         print()
+        #         print_outliers(matmul_lists, outliers_arr)
+        #         self.iteration = 0
+        true_label = self.model(y).logits
         # Clear lists
         clear_lists(input_arr, outliers_arr, outliers_arr_local)
 
@@ -118,6 +118,7 @@ class Loss:
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
             loss += loss_weight * loss_fn(list1_max, target1).squeeze().mean()
             loss += loss_weight * loss_fn(list2_max, target2).squeeze().mean()
+            # loss += 100 * loss_fn(pred, true_label).squeeze().mean() # loss with accuracy
             # loss += torch.mean(-list2_max) #different loss function
             # loss += torch.mean(-list1_max) #different loss function
 
@@ -125,3 +126,4 @@ class Loss:
         loss.backward()
         grads = x_grad.grad
         return grads, loss.item(), total_outliers
+

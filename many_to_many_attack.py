@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 from itertools import product
 from torchvision.utils import save_image
-
+from tqdm import tqdm
 
 class ManyToManyAttack(Attack):
     def __init__(self, cfg) -> None:
@@ -23,12 +23,14 @@ class ManyToManyAttack(Attack):
                                              **dataset_params)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.attack_parmas = dict(list(cfg.attack_params.items())[:-1])
+        self.file_name = self.file_name + "_iter_" + str(self.attack_parmas['max_iter']) + ".csv"
 
     def generate(self, max_batch=math.inf):
         print("Starting many-to-many attack...")
         results_combine = pd.DataFrame()
 
         for batch_id, data in enumerate(self.test_loader):
+
             if batch_id > max_batch:
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
@@ -44,7 +46,7 @@ class ManyToManyAttack(Attack):
 
             # attack
             attack_images = data[0].squeeze(1).to(self.device)
-            adv_x = self.attack.generate(attack_images, "",
+            adv_x = self.attack.generate(attack_images, attack_images,
                                          {'cur': batch_id + 1, 'total': len(self.test_loader)})
 
             res = self.compute_success(attack_images, adv_x, batch_id, data[1])
@@ -55,7 +57,29 @@ def main():
     config_type = 'ManyToMany'
     cfg = config_dict[config_type]()
     attack = ManyToManyAttack(cfg)
-    attack.generate(100)  # generate 100 batches
+    attack.generate(2)  # generate k batches
+
+    # create grid search for attack parameters
+    # config_type = 'ManyToMany'
+    # cfg = config_dict[config_type]()
+    # max_iter_list = [500,1500,3000,4000,5000,6000]
+    # for max_iter in max_iter_list:
+    #     attack_params = {
+    #         'norm': 2,
+    #         'eps': 500,
+    #         'eps_step': 1,
+    #         'decay': None,
+    #         'max_iter': max_iter,
+    #         'targeted': True,
+    #         'num_random_init': 1,
+    #         'device': "cuda"
+    #     }
+    #     for k, v in attack_params.items():
+    #         print(k, v)
+    #     cfg.attack_params = attack_params
+    #     cfg.max_iter = max_iter
+    #     attack = ManyToManyAttack(cfg)
+    #     attack.generate(5)  # generate 100 batches
 
 
 def main_iter_2():

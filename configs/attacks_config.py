@@ -35,6 +35,7 @@ class BaseConfig:
         }
 
         self.attack_name = 'PGD'
+
         self.attack_params = {
             'norm': 2,
             'eps': 500,
@@ -45,6 +46,10 @@ class BaseConfig:
             'num_random_init': 1,
             'device': self.device
         }
+        self.max_iter = self.attack_params['max_iter']
+        self.scheduler = 0.5
+        # print key and value for attack parameters
+
 
         self.demo_mode = 'predict_one'  # 'predict_one' or 'predict_many'
 
