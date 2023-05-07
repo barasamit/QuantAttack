@@ -24,5 +24,3 @@ def get_classification_model(estimator_config):
             nn.Linear(in_features=model.fc.in_features, out_features=estimator_config['num_of_classes'])
         )
         print("Load Resnet18 pretrained model")
-
-

@@ -57,7 +57,7 @@ class ProjectedGradientDescent:
             # apply scheduler
 
             # self.batch_id += 1
-            # if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 1:
+            # if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 5:
             #     self.temp_max_outliers_num = self.outliers_num
             #     self.max_adv = temp_adv_x.clone()
 

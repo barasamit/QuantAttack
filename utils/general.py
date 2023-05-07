@@ -6,12 +6,13 @@ import importlib
 import os
 
 
-
 def print_data_frame(y):
-    data = np.array(y).reshape(12, 6)
+    number_of_blocks = 12
+    number_of_layers = len(y) // number_of_blocks
+    data = np.array(y).reshape(number_of_blocks, number_of_layers)
     df = pd.DataFrame(data)
-    df.index = ["Block " + str(i) for i in range(1, 13)]
-    df.columns = ["Layer " + str(i) for i in range(1, 7)]
+    df.index = ["Block " + str(i) for i in range(1, number_of_blocks + 1)]
+    df.columns = ["Layer " + str(i) for i in range(1, number_of_layers + 1)]
     print(df)
 
 
@@ -28,7 +29,7 @@ def print_outliers(matmul_lists, outliers_arr):
     print_data_frame(y)
 
 
-def save_graph(matmul_lists, outliers_arr, iteration,max_iter, ex=None, title=None, total_outliers=None):
+def save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None):
     y = []
     for i, t in enumerate(matmul_lists):
         if t.size()[2] == 768:
@@ -63,6 +64,7 @@ def save_graph(matmul_lists, outliers_arr, iteration,max_iter, ex=None, title=No
         else:
             print_data_frame(y)
 
+
 def init_seeds(seed=0):
     # Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
@@ -82,6 +84,3 @@ def get_instance(module_name, instance_name):
     module = importlib.import_module(module_name)
     obj = getattr(module, instance_name)
     return obj
-
-
-

@@ -50,8 +50,9 @@ class Attack:
         # self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
 
     def get_name(self):
-        a = self.cfg.attack_params
-        b = [str(a['norm']), str(a['eps']), str(a['eps_step']), str(a['targeted'])]
+        attack_params = self.cfg.attack_params
+        k = self.cfg.num_topk_values
+        b = [str(attack_params['norm']), str(attack_params['eps']), str(attack_params['eps_step']), str(attack_params['targeted']), str(attack_params['max_iter']),str(k)]
         return '_'.join(b)
 
     def make_dir(self, path):

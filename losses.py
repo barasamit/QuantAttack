@@ -1,8 +1,8 @@
 import torch
 from pathlib import Path
-from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local
+from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
 from utils.general import save_graph, print_outliers
-from utils.losses_utils import apply_weights, clear_lists
+from utils.losses_utils import apply_weights, clear_lists, filter_items_by_pointer, stack_tensors_with_same_shape
 
 from utils.attack_utils import count_outliers
 
@@ -40,7 +40,7 @@ class Loss:
         elif choice == 1:
             list1_max = torch.topk(list1.max(dim=2)[0], k=k)[0]
             topk_values, _ = torch.topk(list2.view(-1, 3072), k=k, dim=0)
-            list2_max = topk_values.view(k, 3072)
+            list2_max = list2.topk(k, dim=2)[0]
 
         elif choice == 2:
             _, max_indices = torch.topk(list1, k=k, dim=2)
@@ -54,47 +54,68 @@ class Loss:
         return list1_max, list2_max
 
     def get_input_targeted(self, matmul_lists):
-        batch = matmul_lists[0].shape[0]
+        # Get the batch size, rows and columns -> if use other vit model, change the shape and maybe more shapes
 
         # Apply weights
         lists_with_weights = apply_weights(matmul_lists, self.cfg)
-
-        # Stack list to tensor
-        list1 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, 197, 768)])
-        list2 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, 197, 3072)])
+        stacked_tensors = stack_tensors_with_same_shape(lists_with_weights)
 
         # Get the top k values
-        list1_max, list2_max = Loss.get_topk_max_values(list1, list2, self.cfg.choice, self.cfg.num_topk_values)
+        selected_values_list = []
+        targets_list = []
+        for tensor in stacked_tensors:
+            list1_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
+            threshold = self.cfg.model_threshold_dest
+            mask = list1_max < threshold
+            selected_values = list1_max[mask]
+            target = torch.full_like(selected_values, self.cfg.target)
 
-        # Create a Boolean mask that selects values under the threshold
-        threshold = self.cfg.model_threshold_dest
-        mask1 = list1_max < threshold
-        mask2 = list2_max < threshold
+            selected_values_list.append(selected_values)
+            targets_list.append(target)
 
-        # Apply the mask to select the relevant values
-        selected_values1 = list1_max[mask1]
-        selected_values2 = list2_max[mask2]
+        return selected_values_list, targets_list
 
-        # Create a target tensor
-        target1 = torch.full_like(selected_values1, self.cfg.target)
-        target2 = torch.full_like(selected_values2, self.cfg.target)
-
-        return selected_values1, selected_values2, target1, target2
+        # Stack list to tensor and permute to get the right shape (batch, num_layers, rows, cols)
+        # list1 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, rows, cols)]).permute((1, 0, 2, 3))
+        # list2 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, rows, cols * 4)]).permute((1, 0, 2, 3))
+        #
+        # # Get the top k values
+        # list1_max, list2_max = Loss.get_topk_max_values(list1, list2, self.cfg.choice, self.cfg.num_topk_values)
+        #
+        # # Create a Boolean mask that selects values under the threshold
+        # threshold = self.cfg.model_threshold_dest
+        # mask1 = list1_max < threshold
+        # mask2 = list2_max < threshold
+        #
+        # # Apply the mask to select the relevant values
+        # selected_values1 = list1_max[mask1]
+        # selected_values2 = list2_max[mask2]
+        #
+        # # Create a target tensor
+        # target1 = torch.full_like(selected_values1, self.cfg.target)
+        # target2 = torch.full_like(selected_values2, self.cfg.target)
+        #
+        # return selected_values1, selected_values2, target1, target2
 
     def loss_gradient(self, x, y):
         input_arr.clear()
         x_grad = x.clone().detach().requires_grad_(True)
         pred = self.model(x_grad).logits
+
+        # matmul_lists = filter_items_by_pointer(input_arr.copy(), pointers.copy())
         matmul_lists = input_arr.copy()
         self.iteration += 1
 
         # Get the input and target tensors
-        list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists)
+        # list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists)
+        inputs, targets = self.get_input_targeted(matmul_lists)
 
         # Count the number of outliers
         total_outliers = sum([len(t) for t in outliers_arr])
         local_total_outliers = count_outliers(outliers_arr_local,
                                               threshold=self.cfg.model_threshold)  # compare with total_outliers
+        # total_outliers = local_total_outliers
+        outliers_arr_copy = filter_items_by_pointer(outliers_arr.copy(), pointers.copy())
 
         # assert total_outliers == local_total_outliers
 
@@ -112,13 +133,15 @@ class Loss:
                 self.iteration = 0
         true_label = self.model(y).logits
         # Clear lists
-        clear_lists(input_arr, outliers_arr, outliers_arr_local)
+        clear_lists(input_arr, outliers_arr, outliers_arr_local, pointers)
 
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
-            loss += loss_weight * loss_fn(list1_max, target1).squeeze().mean()
-            loss += loss_weight * loss_fn(list2_max, target2).squeeze().mean()
+            for i in range(len(inputs)):
+                loss += loss_weight * loss_fn(inputs[i], targets[i]).squeeze().mean()
+            # loss += loss_weight * loss_fn(list1_max, target1).squeeze().mean()
+            # loss += loss_weight * loss_fn(list2_max, target2).squeeze().mean()
 
             # loss += 100 * loss_fn(pred, true_label).squeeze().mean() # loss with accuracy
 

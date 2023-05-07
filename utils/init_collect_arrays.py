@@ -7,6 +7,7 @@ transformers_dir = "/sise/home/barasa/.conda/envs/bnb/lib/python3.10/site-packag
 input_arr = []
 outliers_arr = []
 outliers_arr_local = []
+pointers = []
 
 
 def hook_fn(module, input, output):
@@ -18,6 +19,7 @@ def hook_fn(module, input, output):
     if isinstance(module, torch.nn.Dropout):
         pass
     if isinstance(module, Linear8bitLt):
+        pointers.append(id(input[0]))
         input_arr.append(input[0])
         outliers_arr_local.append(input[0]) # this will be used to count outliers instead of ..../site-packages/bitsandytes/autograd/_functions
 

@@ -37,9 +37,9 @@ class BaseConfig:
         self.attack_name = 'PGD'
 
         self.attack_params = {
-            'norm': 2,
-            'eps': 500,
-            'eps_step': 1,
+            'norm': "inf",
+            'eps': 1,
+            'eps_step': 0.01,
             'decay': None,
             'max_iter': 300,
             'targeted': True,

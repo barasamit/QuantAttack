@@ -63,3 +63,44 @@ def apply_weights(matmul_lists, cfg):
 def clear_lists(*lists):
     for lst in lists:
         lst.clear()
+
+
+def filter_items_by_pointer(items, pointers, mode="filter"):
+    unique_items = {}
+    if mode == "filter":
+        for item, pointer in zip(items, pointers):
+            unique_items[pointer] = item
+    else:
+        for item, pointer in zip(items, pointers):
+            if pointer in unique_items:
+                unique_items[pointer] += item
+            else:
+                unique_items[pointer] = item
+    return list(unique_items.values())
+
+
+def stack_tensors_with_same_shape(matmul_lists):
+    # Create a dictionary to store tensors with the same shape
+    tensor_dict = {}
+    for tensor in matmul_lists:
+        shape = tensor.shape
+        if shape in tensor_dict:
+            tensor_dict[shape].append(tensor)
+        else:
+            tensor_dict[shape] = [tensor]
+
+    # Create a list to store the stacked tensors
+    stacked_tensors = []
+
+    # Iterate over the dictionary of tensors with the same shape
+    for shape, tensor_list in tensor_dict.items():
+        if len(tensor_list) == 1:
+            stacked_tensors.append(tensor_list[0])
+        else:
+            stacked_tensor = torch.stack(tensor_list)
+            stacked_tensors.append(stacked_tensor)
+
+    # permute to get the right shape (batch, num_layers, rows, cols)
+    stacked_tensors = [tensor.permute(1, 0, 2, 3) for tensor in stacked_tensors]
+
+    return stacked_tensors

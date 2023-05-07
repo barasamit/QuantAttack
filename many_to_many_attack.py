@@ -14,6 +14,8 @@ from itertools import product
 from torchvision.utils import save_image
 from tqdm import tqdm
 
+
+#####
 class ManyToManyAttack(Attack):
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
@@ -31,7 +33,7 @@ class ManyToManyAttack(Attack):
 
         for batch_id, data in enumerate(self.test_loader):
 
-            if batch_id > max_batch:
+            if batch_id > max_batch or (batch_id % 25 == 0 and batch_id > 0):
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
@@ -42,6 +44,7 @@ class ManyToManyAttack(Attack):
                 with open(os.path.join(self.attack_dir, "attack_parameters.yml"), 'w') as outfile:
                     yaml.dump(self.attack_parmas, outfile, default_flow_style=False)
                 print(f"saved{self.file_name}")
+            if batch_id > max_batch:
                 break
 
             # attack
@@ -84,18 +87,23 @@ def main():
 
 def main_iter_2():
     norm_list = [2]
-    eps_list = [150, 350, 500, 800]
-    eps_step_list = [1, 3, 5, 10, 15]
+    eps_list = [1, 2, 5, 150, 500]
+    eps_step_list = [0.05, 0.1, 1, 3, 5]
     targeted_list = [True]
+    max_iter_list = [100, 300, 1000]
+    num_topk_values_list = [1, 3, 5, 5000]
+    choice_list = [0, 1, 2]
 
     # create grid search for attack parameters
-    for norm, eps, eps_step, targeted in product(norm_list, eps_list, eps_step_list, targeted_list):
+    for norm, eps, eps_step, targeted, max_iter, num_topk_values in product(norm_list, eps_list, eps_step_list,
+                                                                            targeted_list, max_iter_list,
+                                                                            num_topk_values_list):
         attack_params = {
             'norm': norm,
             'eps': eps,
             'eps_step': eps_step,
             'decay': None,
-            'max_iter': 150,
+            'max_iter': max_iter,
             'targeted': targeted,
             'num_random_init': 1,
             'device': "cuda"
@@ -106,7 +114,8 @@ def main_iter_2():
         config_type = 'ManyToMany'
         cfg = config_dict[config_type]()
         cfg.attack_params = attack_params
-        # if csv name is exist, skip
+        cfg.num_topk_values = num_topk_values
+        cfg.choice = 0
 
         attack = ManyToManyAttack(cfg)
         # if os.path.exists(attack.attack_dir):
@@ -119,17 +128,21 @@ def main_iter_2():
 def main_iter_inf():
     norm_list = ["inf"]
     eps_list = [1, 2, 5, 8, 10]
-    eps_step_list = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1]
+    eps_step_list = [0.001, 0.01, 0.05, 0.1, 1]
+    max_iter_list = [1000]
+    num_topk_values_list = [1, 3, 5, 5000]
     targeted_list = [True]
 
     # create grid search for attack parameters
-    for norm, eps, eps_step, targeted in product(norm_list, eps_list, eps_step_list, targeted_list):
+    for norm, eps, eps_step, targeted, max_iter, num_topk_values in product(norm_list, eps_list, eps_step_list,
+                                                                            targeted_list, max_iter_list,
+                                                                            num_topk_values_list):
         attack_params = {
             'norm': norm,
             'eps': eps,
             'eps_step': eps_step,
             'decay': None,
-            'max_iter': 2,
+            'max_iter': max_iter,
             'targeted': targeted,
             'num_random_init': 1,
             'device': "cuda"
@@ -140,14 +153,17 @@ def main_iter_inf():
         config_type = 'ManyToMany'
         cfg = config_dict[config_type]()
         cfg.attack_params = attack_params
-        # if csv name is exist, skip
+        cfg.num_topk_values = 1
+        cfg.choice = 0
 
         attack = ManyToManyAttack(cfg)
-        if os.path.exists(attack.attack_dir): continue
+        # if os.path.exists(attack.attack_dir): continue
         #
         attack.generate(100)  # generate 100 batches
         print("#############################################")
 
 
 if __name__ == '__main__':
+    print("start")
     main()
+
