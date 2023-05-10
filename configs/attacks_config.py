@@ -38,10 +38,10 @@ class BaseConfig:
 
         self.attack_params = {
             'norm': "inf",
-            'eps': 1,
+            'eps': 10,
             'eps_step': 0.01,
             'decay': None,
-            'max_iter': 300,
+            'max_iter': 10000,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device
@@ -51,7 +51,6 @@ class BaseConfig:
         self.scheduler = 0.5
         # print key and value for attack parameters
 
-
         self.demo_mode = 'predict_one'  # 'predict_one' or 'predict_many'
 
         self.loader_params = {
@@ -60,10 +59,11 @@ class BaseConfig:
         }
 
         self.model_threshold = 6
-        self.model_threshold_dest = 12
+        self.model_threshold_dest = 6
         self.target = 70
 
-        self.num_topk_values = 1
+        self.num_topk_values = 2
+        print("num_topk_values: ", self.num_topk_values)
         self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
 
         self.blocks_weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # 12 blocks in VIT

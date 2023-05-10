@@ -7,6 +7,7 @@ from utils.losses_utils import apply_weights, clear_lists, filter_items_by_point
 from utils.attack_utils import count_outliers
 
 
+
 class Loss:
 
     def __init__(self, model, loss_fns, convert_fn, cfg, images_save_path=None, mask=None,
@@ -57,17 +58,27 @@ class Loss:
         # Get the batch size, rows and columns -> if use other vit model, change the shape and maybe more shapes
 
         # Apply weights
-        lists_with_weights = apply_weights(matmul_lists, self.cfg)
-        stacked_tensors = stack_tensors_with_same_shape(lists_with_weights)
+        # lists_with_weights = apply_weights(matmul_lists, self.cfg)
+        stacked_tensors = stack_tensors_with_same_shape(matmul_lists)
 
         # Get the top k values
+        threshold = self.cfg.model_threshold_dest
+
         selected_values_list = []
         targets_list = []
         for tensor in stacked_tensors:
+
+            tensor = tensor.abs()
             list1_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
-            threshold = self.cfg.model_threshold_dest
-            mask = list1_max < threshold
+            mask_lower = list1_max > 3
+            mask_upper = list1_max < threshold
+
+            # Combine the two masks using the logical AND operator &
+            # mask = mask_lower & mask_upper
+            mask = mask_upper
             selected_values = list1_max[mask]
+            if len(selected_values) == 0:
+                selected_values = torch.tensor([self.cfg.target]).to(self.device)
             target = torch.full_like(selected_values, self.cfg.target)
 
             selected_values_list.append(selected_values)
@@ -114,9 +125,6 @@ class Loss:
         total_outliers = sum([len(t) for t in outliers_arr])
         local_total_outliers = count_outliers(outliers_arr_local,
                                               threshold=self.cfg.model_threshold)  # compare with total_outliers
-        # total_outliers = local_total_outliers
-        outliers_arr_copy = filter_items_by_pointer(outliers_arr.copy(), pointers.copy())
-
         # assert total_outliers == local_total_outliers
 
         # Save the image
@@ -126,12 +134,14 @@ class Loss:
             save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, total_outliers)
             # save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None)
             # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
-        else:
-            if self.iteration == self.max_iter or self.iteration % 2000 == 0:
-                print()
-                print_outliers(matmul_lists, outliers_arr)
-                self.iteration = 0
+
+        outliers_df = print_outliers(matmul_lists, outliers_arr)
+        if self.iteration % 200 == 0:
+            print()
+            print(outliers_df)
+
         true_label = self.model(y).logits
+
         # Clear lists
         clear_lists(input_arr, outliers_arr, outliers_arr_local, pointers)
 

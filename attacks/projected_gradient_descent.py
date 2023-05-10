@@ -1,8 +1,11 @@
 # inspired by adversarial-robustness-toolbox (IBM)
 
 import torch
+# import optimizer
+import torch.optim as optim
 from tqdm import tqdm
 import os
+import torch.optim.lr_scheduler as lr_scheduler
 
 
 class ProjectedGradientDescent:
@@ -33,6 +36,9 @@ class ProjectedGradientDescent:
         self.temp_max_outliers_num = 0
         self.max_adv = None
         self.batch_id = 0
+        self.optimizer = optim.SGD([self.eps_step], lr=0.01, momentum=0.9)  # Initialize SGD optimizer with momentum
+        lambda1 = lambda epoch: 0.65 ** epoch
+        self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
 
     def generate(self, inputs, targets, batch_info):
         # self._generate_batch(inputs, targets, batch_info)
@@ -43,6 +49,7 @@ class ProjectedGradientDescent:
         return self._generate_batch(inputs, targets, batch_info)
 
     def _generate_batch(self, inputs, targets, batch_info):
+
         adv_x = inputs.clone()
         momentum = torch.zeros(inputs.shape)
         progress_bar = tqdm(range(self.max_iter), total=self.max_iter, ncols=150,
@@ -51,22 +58,10 @@ class ProjectedGradientDescent:
         for i, _ in enumerate(progress_bar):
             temp_adv_x = adv_x.clone()
             adv_x = self._compute(adv_x, inputs, targets, momentum)
+            self.scheduler.step(epoch=i)
             progress_bar.set_postfix_str(
                 'Batch Loss: {:.4} , number of outliers {}'.format(self.loss_values[-1], self.outliers_num))
 
-            # apply scheduler
-
-            # self.batch_id += 1
-            # if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 5:
-            #     self.temp_max_outliers_num = self.outliers_num
-            #     self.max_adv = temp_adv_x.clone()
-
-            # # multiple tensor in scalar
-
-            # if self.batch_id % 200 == 0:
-            #     print()
-            #     print(f" eps_step: {self.eps_step}")
-            #     self.eps_step = 0.8 * self.eps_step
         return adv_x
 
     def _compute(self, x_adv, x_init, targets, momentum):

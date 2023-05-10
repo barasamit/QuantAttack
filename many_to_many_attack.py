@@ -33,7 +33,7 @@ class ManyToManyAttack(Attack):
 
         for batch_id, data in enumerate(self.test_loader):
 
-            if batch_id > max_batch or (batch_id % 25 == 0 and batch_id > 0):
+            if batch_id > max_batch or (batch_id % 5 == 0 and batch_id > 0):
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
@@ -60,7 +60,7 @@ def main():
     config_type = 'ManyToMany'
     cfg = config_dict[config_type]()
     attack = ManyToManyAttack(cfg)
-    attack.generate(2)  # generate k batches
+    attack.generate(20)  # generate k batches
 
     # create grid search for attack parameters
     # config_type = 'ManyToMany'
@@ -127,10 +127,10 @@ def main_iter_2():
 
 def main_iter_inf():
     norm_list = ["inf"]
-    eps_list = [1, 2, 5, 8, 10]
-    eps_step_list = [0.001, 0.01, 0.05, 0.1, 1]
+    eps_list = [10]
+    eps_step_list = [0.01]
     max_iter_list = [1000]
-    num_topk_values_list = [1, 3, 5, 5000]
+    num_topk_values_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     targeted_list = [True]
 
     # create grid search for attack parameters
@@ -159,11 +159,9 @@ def main_iter_inf():
         attack = ManyToManyAttack(cfg)
         # if os.path.exists(attack.attack_dir): continue
         #
-        attack.generate(100)  # generate 100 batches
+        attack.generate(10)  # generate 100 batches
         print("#############################################")
 
 
 if __name__ == '__main__':
-    print("start")
-    main()
-
+    main_iter_inf()

@@ -13,7 +13,8 @@ def print_data_frame(y):
     df = pd.DataFrame(data)
     df.index = ["Block " + str(i) for i in range(1, number_of_blocks + 1)]
     df.columns = ["Layer " + str(i) for i in range(1, number_of_layers + 1)]
-    print(df)
+    return df
+    # print(df)
 
 
 def print_outliers(matmul_lists, outliers_arr):
@@ -26,7 +27,7 @@ def print_outliers(matmul_lists, outliers_arr):
                 print("Error")
         else:
             y.append((len(outliers_arr[i]) / 3072) * 100)
-    print_data_frame(y)
+    return print_data_frame(y)
 
 
 def save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None):
