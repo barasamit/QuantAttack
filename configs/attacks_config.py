@@ -28,10 +28,10 @@ class BaseConfig:
         dataset_name = 'imagenet'
         self._set_dataset(dataset_name)
 
-        self.loss_func_params = {'MSE': {}}
+        self.loss_func_params = {'BCEWithLogitsLoss': {}}  # BCEWithLogitsLoss , MSE
 
         self.loss_params = {
-            'weights': [1]
+            'weights': [2]
         }
 
         self.attack_name = 'PGD'
@@ -59,10 +59,10 @@ class BaseConfig:
         }
 
         self.model_threshold = 6
-        self.model_threshold_dest = 6
+        self.model_threshold_dest = 7
         self.target = 70
 
-        self.num_topk_values = 2
+        self.num_topk_values = 4
         print("num_topk_values: ", self.num_topk_values)
         self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
 

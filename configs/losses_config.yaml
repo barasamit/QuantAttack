@@ -7,3 +7,7 @@ L1:
 LPIPS:
   module_name: 'utils.losses_utils'
   class_name: 'LPIPS'
+
+BCEWithLogitsLoss:
+  module_name: 'utils.losses_utils'
+  class_name: 'BCEWithLogitsLoss'

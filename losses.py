@@ -5,7 +5,8 @@ from utils.general import save_graph, print_outliers
 from utils.losses_utils import apply_weights, clear_lists, filter_items_by_pointer, stack_tensors_with_same_shape
 
 from utils.attack_utils import count_outliers
-
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Loss:
@@ -70,12 +71,12 @@ class Loss:
 
             tensor = tensor.abs()
             list1_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
-            mask_lower = list1_max > 3
+            mask_lower = list1_max > 2
             mask_upper = list1_max < threshold
 
             # Combine the two masks using the logical AND operator &
-            # mask = mask_lower & mask_upper
-            mask = mask_upper
+            mask = mask_lower & mask_upper
+            # mask = mask_upper
             selected_values = list1_max[mask]
             if len(selected_values) == 0:
                 selected_values = torch.tensor([self.cfg.target]).to(self.device)
@@ -86,27 +87,7 @@ class Loss:
 
         return selected_values_list, targets_list
 
-        # Stack list to tensor and permute to get the right shape (batch, num_layers, rows, cols)
-        # list1 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, rows, cols)]).permute((1, 0, 2, 3))
-        # list2 = torch.stack([tensor for tensor in lists_with_weights if tensor.size() == (batch, rows, cols * 4)]).permute((1, 0, 2, 3))
-        #
-        # # Get the top k values
-        # list1_max, list2_max = Loss.get_topk_max_values(list1, list2, self.cfg.choice, self.cfg.num_topk_values)
-        #
-        # # Create a Boolean mask that selects values under the threshold
-        # threshold = self.cfg.model_threshold_dest
-        # mask1 = list1_max < threshold
-        # mask2 = list2_max < threshold
-        #
-        # # Apply the mask to select the relevant values
-        # selected_values1 = list1_max[mask1]
-        # selected_values2 = list2_max[mask2]
-        #
-        # # Create a target tensor
-        # target1 = torch.full_like(selected_values1, self.cfg.target)
-        # target2 = torch.full_like(selected_values2, self.cfg.target)
-        #
-        # return selected_values1, selected_values2, target1, target2
+
 
     def loss_gradient(self, x, y):
         input_arr.clear()
@@ -122,7 +103,7 @@ class Loss:
         inputs, targets = self.get_input_targeted(matmul_lists)
 
         # Count the number of outliers
-        total_outliers = sum([len(t) for t in outliers_arr])
+        total_outliers = sum([len(l) for l in outliers_arr])
         local_total_outliers = count_outliers(outliers_arr_local,
                                               threshold=self.cfg.model_threshold)  # compare with total_outliers
         # assert total_outliers == local_total_outliers
@@ -148,12 +129,13 @@ class Loss:
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
+
             for i in range(len(inputs)):
                 loss += loss_weight * loss_fn(inputs[i], targets[i]).squeeze().mean()
             # loss += loss_weight * loss_fn(list1_max, target1).squeeze().mean()
             # loss += loss_weight * loss_fn(list2_max, target2).squeeze().mean()
 
-            # loss += 100 * loss_fn(pred, true_label).squeeze().mean() # loss with accuracy
+        # loss += 100 * nn.MSELoss(pred, true_label).squeeze().mean() # loss with accuracy
 
             # loss += torch.mean(-list2_max) #different loss function
             # loss += torch.mean(-list1_max) #different loss function

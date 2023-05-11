@@ -18,7 +18,7 @@ class ProjectedGradientDescent:
                  max_iter=100,
                  targeted=False,
                  num_random_init=1,
-                 device='cpu',
+                 device='gpu',
                  clip_values=(0, 1)) -> None:
         super().__init__()
         self.loss_function = loss_function
@@ -33,34 +33,40 @@ class ProjectedGradientDescent:
         self.clip_min = torch.tensor(clip_values[0], dtype=torch.float32, device=self.device)
         self.clip_max = torch.tensor(clip_values[1], dtype=torch.float32, device=self.device)
         self.outliers_num = 0
-        self.temp_max_outliers_num = 0
         self.max_adv = None
         self.batch_id = 0
-        self.optimizer = optim.SGD([self.eps_step], lr=0.01, momentum=0.9)  # Initialize SGD optimizer with momentum
-        lambda1 = lambda epoch: 0.65 ** epoch
-        self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
+        self.temp_max_outliers_num = 0
+        self.optimizer = optim.SGD([self.eps_step], lr=0.001, momentum=0.9)  # Initialize SGD optimizer with momentum
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=10, T_mult=2, eta_min=0.0001, last_epoch=-1)
 
     def generate(self, inputs, targets, batch_info):
-        # self._generate_batch(inputs, targets, batch_info)
-        # res = self.max_adv.clone()
-        # self.max_adv = None
-        # self.batch_id = 0
-        # self.temp_max_outliers_num = 0
-        return self._generate_batch(inputs, targets, batch_info)
+        res = self._generate_batch(inputs, targets, batch_info)
+        self.max_adv = None
+        self.batch_id = 0
+        self.temp_max_outliers_num = 0
+        return res
 
     def _generate_batch(self, inputs, targets, batch_info):
 
         adv_x = inputs.clone()
-        momentum = torch.zeros(inputs.shape)
+        momentum = torch.zeros(inputs.shape).to(self.device)
         progress_bar = tqdm(range(self.max_iter), total=self.max_iter, ncols=150,
                             desc='Batch {}/{} '.format(batch_info['cur'], batch_info['total']))
         self.loss_values = []
         for i, _ in enumerate(progress_bar):
             temp_adv_x = adv_x.clone()
             adv_x = self._compute(adv_x, inputs, targets, momentum)
-            self.scheduler.step(epoch=i)
+            # self.scheduler.step(epoch=i)
+            # self.eps_step = self.optimizer.param_groups[0]['lr']
+
+            if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 3:
+                self.temp_max_outliers_num = self.outliers_num
+                self.max_adv = adv_x.clone()
+            self.batch_id += 1
             progress_bar.set_postfix_str(
-                'Batch Loss: {:.4} , number of outliers {}'.format(self.loss_values[-1], self.outliers_num))
+                'Batch Loss: {:.4} , number of outliers {}, max_outliers_num {}'.format(self.loss_values[-1],
+                                                                                        self.outliers_num,
+                                                                                        self.temp_max_outliers_num))
 
         return adv_x
 
