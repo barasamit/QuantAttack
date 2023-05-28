@@ -110,6 +110,7 @@ class Loss:
             for i in range(len(inputs)):
                 loss += loss_weight * loss_fn(inputs[i].to(torch.float64),
                                               targets[i].to(torch.float64)).squeeze().mean()
+
             # loss += 50 * loss_fn(pred, true_label).squeeze().mean()   # add accuracy loss
 
         self.model.zero_grad()

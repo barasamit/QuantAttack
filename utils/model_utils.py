@@ -1,19 +1,23 @@
-
 import torch.nn as nn
 import torchvision
-from transformers import AutoImageProcessor, ViTForImageClassification
+from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling
 
 
-def get_vit_model(cfg):
-
-    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",
-                                                      load_in_8bit=True,load_in_8bit_threshold=cfg.model_threshold)
-
+def get_model(cfg,model_name):
+    if model_name == 'VIT':
+        model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",
+                                                          load_in_8bit=True, load_in_8bit_threshold=cfg.model_threshold)
+    elif model_name == 'DeiT':
+        model = DeiTForMaskedImageModeling.from_pretrained("facebook/deit-base-distilled-patch16-224", device_map="auto",
+                                                          load_in_8bit=True, load_in_8bit_threshold=cfg.model_threshold)
     return model
 
 
-def get_vit_feature_extractor():
-    feature_extractor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+def get_model_feature_extractor(model_name):
+    if model_name == 'VIT':
+        feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224')
+    elif model_name == 'DeiT':
+        feature_extractor = AutoImageProcessor.from_pretrained("facebook/deit-base-distilled-patch16-224")
     return feature_extractor
 
 

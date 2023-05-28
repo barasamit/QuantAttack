@@ -22,7 +22,7 @@ class BaseConfig:
         self.root_path = ROOT
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'VIT'  # see configs/model_config.yaml for other options
+        model_name = 'DeiT'  # DeiT, VIT,
         # self.estimator_name = 'ResNet18'
 
         dataset_name = 'imagenet'
@@ -37,11 +37,11 @@ class BaseConfig:
         self.attack_name = 'PGD'
 
         self.attack_params = {
-            'norm': 2,
-            'eps': 500,
-            'eps_step': 1,
+            'norm': "inf",
+            'eps': 10,
+            'eps_step': 0.01,
             'decay': None,
-            'max_iter': 100000,
+            'max_iter': 10000,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device

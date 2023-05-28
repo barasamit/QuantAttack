@@ -22,6 +22,7 @@ class ManyToManyAttack(Attack):
 
         dataset_params = {'random_pair': True, 'load_reconstruct': True, 'load_lensed': True}
         _, _, self.test_loader = get_loaders(self.cfg.loader_params, self.cfg.dataset_config, ['test'],
+                                             model_name=self.cfg.model_name,
                                              **dataset_params)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.attack_parmas = dict(list(cfg.attack_params.items())[:-1])
@@ -87,11 +88,11 @@ def main():
 
 def main_iter_2():
     norm_list = [2]
-    eps_list = [1, 2, 5, 150, 500]
+    eps_list = [500]
     eps_step_list = [0.05, 0.1, 1, 3, 5]
     targeted_list = [True]
-    max_iter_list = [100, 300, 1000]
-    num_topk_values_list = [1, 3, 5, 5000]
+    max_iter_list = [1200]
+    num_topk_values_list = [4]
     choice_list = [0, 1, 2]
 
     # create grid search for attack parameters
@@ -121,16 +122,16 @@ def main_iter_2():
         # if os.path.exists(attack.attack_dir):
         #     continue
 
-        attack.generate(100)  # generate 100 batches
+        attack.generate(5)  # generate 100 batches
         print("#############################################")
 
 
 def main_iter_inf():
     norm_list = ["inf"]
     eps_list = [10]
-    eps_step_list = [0.01]
-    max_iter_list = [1000]
-    num_topk_values_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    eps_step_list = [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+    max_iter_list = [1200]
+    num_topk_values_list = [4]
     targeted_list = [True]
 
     # create grid search for attack parameters
@@ -153,13 +154,13 @@ def main_iter_inf():
         config_type = 'ManyToMany'
         cfg = config_dict[config_type]()
         cfg.attack_params = attack_params
-        cfg.num_topk_values = 1
+        cfg.num_topk_values = 4
         cfg.choice = 0
 
         attack = ManyToManyAttack(cfg)
         # if os.path.exists(attack.attack_dir): continue
         #
-        attack.generate(10)  # generate 100 batches
+        attack.generate(5)  # generate 100 batches
         print("#############################################")
 
 

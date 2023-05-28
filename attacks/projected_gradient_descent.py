@@ -39,10 +39,10 @@ class ProjectedGradientDescent:
         self.start_eps_step = eps_step
         self.optimizer = optim.SGD([torch.zeros(1)], lr=self.eps_step.item(),
                                    momentum=0.9)  # Initialize SGD optimizer with momentum
-        self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=self.eps_step.item(), max_lr=10,
-                                                           step_size_up=1000, mode="triangular2")
-        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=1000, T_mult=1,
-        #                                                                       eta_min=1e-5, last_epoch=-1)
+        # self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=self.eps_step.item(), max_lr=10,
+        #                                                    step_size_up=1200, mode="triangular2")
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=1000, T_mult=1,
+                                                                              eta_min=1e-5, last_epoch=-1)
         # self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=50, verbose=True)
 
     def generate(self, inputs, targets, batch_info):
@@ -82,10 +82,11 @@ class ProjectedGradientDescent:
                 num_iter_without_outlier_increase = 0
 
             # Check if the number of outliers has not increased for 100 iterations
-            if num_iter_without_outlier_increase >= 100 and self.outliers_num - prev_outliers_num <= 100:
-                self.eps_step = self.start_eps_step  # Reset eps_step to the start value
-                self.optimizer.param_groups[0]['lr'] = self.eps_step.item()
-                num_iter_without_outlier_increase = 0
+            # if num_iter_without_outlier_increase >= 100 and self.outliers_num - prev_outliers_num <= 100:
+            #
+            #     self.eps_step = self.start_eps_step  # Reset eps_step to the start value
+            #     self.optimizer.param_groups[0]['lr'] = self.eps_step.item()
+            #     num_iter_without_outlier_increase = 0
 
             prev_outliers_num = self.outliers_num
 

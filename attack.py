@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import torch
-from utils.model_utils import get_vit_model, get_vit_feature_extractor
+from utils.model_utils import get_model, get_model_feature_extractor
 from utils.init_collect_arrays import outliers_arr, hook_fn
 
 from utils.general import get_instance
@@ -24,12 +24,12 @@ class Attack:
         self.make_dir(self.attack_dir)
         self.file_name = os.path.join(self.attack_dir, f"results.csv")
 
-        self.model = get_vit_model(cfg)
+        self.model = get_model(cfg, self.cfg['model_name'])
         # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
         for name, module in self.model.named_modules():
             module.register_forward_hook(hook_fn)
 
-        self.feature_extractor = get_vit_feature_extractor()
+        self.feature_extractor = get_model_feature_extractor(self.cfg['model_name'])
         self.clean_time = 0
         self.adv_time = 0
         self.outliers = []
