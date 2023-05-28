@@ -60,7 +60,7 @@ def main():
     config_type = 'ManyToMany'
     cfg = config_dict[config_type]()
     attack = ManyToManyAttack(cfg)
-    attack.generate(5)  # generate k batches
+    attack.generate(20)  # generate k batches
 
     # create grid search for attack parameters
     # config_type = 'ManyToMany'

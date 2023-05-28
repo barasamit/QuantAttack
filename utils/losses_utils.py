@@ -114,3 +114,25 @@ def stack_tensors_with_same_shape(matmul_lists):
     stacked_tensors = [tensor.permute(1, 0, 2, 3) for tensor in stacked_tensors]
 
     return stacked_tensors
+
+
+def get_topk_max_values(list1, list2, choice=0, k=1):
+    if choice == 0:
+        list1_max = list1.topk(k, dim=2)[0]
+        list2_max = list2.topk(k, dim=2)[0]
+
+    elif choice == 1:
+        list1_max = torch.topk(list1.max(dim=2)[0], k=k)[0]
+        topk_values, _ = torch.topk(list2.view(-1, 3072), k=k, dim=0)
+        list2_max = list2.topk(k, dim=2)[0]
+
+    elif choice == 2:
+        _, max_indices = torch.topk(list1, k=k, dim=2)
+        list1_max = torch.gather(list1, 2, max_indices)
+        _, max_indices = torch.topk(list2, k=k, dim=2)
+        list2_max = torch.gather(list2, 2, max_indices)
+
+    else:
+        raise ValueError("Invalid choice. Choose between 1, 2 or 3.")
+
+    return list1_max, list2_max

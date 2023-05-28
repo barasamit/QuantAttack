@@ -13,7 +13,7 @@ class ProjectedGradientDescent:
                  loss_function=None,
                  norm="inf",
                  eps=0.3,
-                 eps_step=0.1,
+                 eps_step=0.05,
                  decay=None,
                  max_iter=100,
                  targeted=False,
@@ -36,8 +36,14 @@ class ProjectedGradientDescent:
         self.max_adv = None
         self.batch_id = 0
         self.temp_max_outliers_num = 0
-        self.optimizer = optim.SGD([self.eps_step], lr=0.001, momentum=0.9)  # Initialize SGD optimizer with momentum
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=10, T_mult=2, eta_min=0.0001, last_epoch=-1)
+        self.start_eps_step = eps_step
+        self.optimizer = optim.SGD([torch.zeros(1)], lr=self.eps_step.item(),
+                                   momentum=0.9)  # Initialize SGD optimizer with momentum
+        self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=self.eps_step.item(), max_lr=10,
+                                                           step_size_up=1000, mode="triangular2")
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=1000, T_mult=1,
+        #                                                                       eta_min=1e-5, last_epoch=-1)
+        # self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=50, verbose=True)
 
     def generate(self, inputs, targets, batch_info):
         res = self._generate_batch(inputs, targets, batch_info)
@@ -47,26 +53,50 @@ class ProjectedGradientDescent:
         return res
 
     def _generate_batch(self, inputs, targets, batch_info):
-
         adv_x = inputs.clone()
         momentum = torch.zeros(inputs.shape).to(self.device)
         progress_bar = tqdm(range(self.max_iter), total=self.max_iter, ncols=150,
                             desc='Batch {}/{} '.format(batch_info['cur'], batch_info['total']))
         self.loss_values = []
+        eps_step_list = []
+        out_list = []
+
+        num_iter_without_outlier_increase = 0  # Counter for the number of iterations without an increase in outliers
+        prev_outliers_num = self.outliers_num  # Previous outlier count
+
         for i, _ in enumerate(progress_bar):
             temp_adv_x = adv_x.clone()
             adv_x = self._compute(adv_x, inputs, targets, momentum)
-            # self.scheduler.step(epoch=i)
-            # self.eps_step = self.optimizer.param_groups[0]['lr']
+            self.scheduler.step(epoch=i)
+            self.eps_step = self.optimizer.param_groups[0]['lr']
+            eps_step_list.append(self.eps_step)
+            out_list.append(self.outliers_num)
 
             if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 3:
                 self.temp_max_outliers_num = self.outliers_num
                 self.max_adv = adv_x.clone()
+
+            if self.outliers_num <= prev_outliers_num:
+                num_iter_without_outlier_increase += 1
+            else:
+                num_iter_without_outlier_increase = 0
+
+            # Check if the number of outliers has not increased for 100 iterations
+            if num_iter_without_outlier_increase >= 100 and self.outliers_num - prev_outliers_num <= 100:
+                self.eps_step = self.start_eps_step  # Reset eps_step to the start value
+                self.optimizer.param_groups[0]['lr'] = self.eps_step.item()
+                num_iter_without_outlier_increase = 0
+
+            prev_outliers_num = self.outliers_num
+
             self.batch_id += 1
             progress_bar.set_postfix_str(
-                'Batch Loss: {:.4} , number of outliers {}, max_outliers_num {}'.format(self.loss_values[-1],
-                                                                                        self.outliers_num,
-                                                                                        self.temp_max_outliers_num))
+                'Batch Loss: {:.4}, number of outliers {}, max_outliers_num {}, eps_step {}'.format(
+                    self.loss_values[-1],
+                    self.outliers_num,
+                    self.temp_max_outliers_num,
+                    self.eps_step
+                ))
 
         return adv_x
 

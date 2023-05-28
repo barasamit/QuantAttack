@@ -28,20 +28,20 @@ class BaseConfig:
         dataset_name = 'imagenet'
         self._set_dataset(dataset_name)
 
-        self.loss_func_params = {'BCEWithLogitsLoss': {}}  # BCEWithLogitsLoss , MSE
+        self.loss_func_params = {'MSE': {}}  # BCEWithLogitsLoss , MSE
 
         self.loss_params = {
-            'weights': [2]
+            'weights': [1]
         }
 
         self.attack_name = 'PGD'
 
         self.attack_params = {
-            'norm': "inf",
-            'eps': 10,
-            'eps_step': 0.01,
+            'norm': 2,
+            'eps': 500,
+            'eps_step': 1,
             'decay': None,
-            'max_iter': 10000,
+            'max_iter': 100000,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device
@@ -54,7 +54,7 @@ class BaseConfig:
         self.demo_mode = 'predict_one'  # 'predict_one' or 'predict_many'
 
         self.loader_params = {
-            'batch_size': 8,
+            'batch_size': 1,
             'num_workers': 4
         }
 

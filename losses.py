@@ -1,12 +1,11 @@
-import torch
 from pathlib import Path
-from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
-from utils.general import save_graph, print_outliers
-from utils.losses_utils import apply_weights, clear_lists, filter_items_by_pointer, stack_tensors_with_same_shape
+
+import torch
 
 from utils.attack_utils import count_outliers
-import torch.nn as nn
-import torch.nn.functional as F
+from utils.general import save_graph, print_outliers
+from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
+from utils.losses_utils import clear_lists, stack_tensors_with_same_shape
 
 
 class Loss:
@@ -32,34 +31,8 @@ class Loss:
         else:
             self.loss_weights = [1] * len(loss_fns)
 
-    @staticmethod
-    def get_topk_max_values(list1, list2, choice=0, k=1):
-
-        if choice == 0:
-            list1_max = list1.topk(k, dim=2)[0]
-            list2_max = list2.topk(k, dim=2)[0]
-
-        elif choice == 1:
-            list1_max = torch.topk(list1.max(dim=2)[0], k=k)[0]
-            topk_values, _ = torch.topk(list2.view(-1, 3072), k=k, dim=0)
-            list2_max = list2.topk(k, dim=2)[0]
-
-        elif choice == 2:
-            _, max_indices = torch.topk(list1, k=k, dim=2)
-            list1_max = torch.gather(list1, 2, max_indices)
-            _, max_indices = torch.topk(list2, k=k, dim=2)
-            list2_max = torch.gather(list2, 2, max_indices)
-
-        else:
-            raise ValueError("Invalid choice. Choose between 1, 2 or 3.")
-
-        return list1_max, list2_max
-
     def get_input_targeted(self, matmul_lists):
         # Get the batch size, rows and columns -> if use other vit model, change the shape and maybe more shapes
-
-        # Apply weights
-        # lists_with_weights = apply_weights(matmul_lists, self.cfg)
         stacked_tensors = stack_tensors_with_same_shape(matmul_lists)
 
         # Get the top k values
@@ -67,17 +40,25 @@ class Loss:
 
         selected_values_list = []
         targets_list = []
-        for tensor in stacked_tensors:
+
+        for i, tensor in enumerate(stacked_tensors):
+            # attack specific layers
+            # if i == 0:
+            #     tensor = tensor[:, :42, :]
+            # elif i == 1:
+            #     tensor = tensor[:, :8, :]
+
+            # tensor = tensor[:, :, 0:1, :]  # take only the first row
 
             tensor = tensor.abs()
-            list1_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
-            mask_lower = list1_max > 2
-            mask_upper = list1_max < threshold
-
+            t_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
+            mask_lower = t_max > 2
+            mask_upper = t_max < threshold
             # Combine the two masks using the logical AND operator &
             mask = mask_lower & mask_upper
             # mask = mask_upper
-            selected_values = list1_max[mask]
+
+            selected_values = t_max[mask]
             if len(selected_values) == 0:
                 selected_values = torch.tensor([self.cfg.target]).to(self.device)
             target = torch.full_like(selected_values, self.cfg.target)
@@ -87,10 +68,8 @@ class Loss:
 
         return selected_values_list, targets_list
 
-
-
     def loss_gradient(self, x, y):
-        input_arr.clear()
+        clear = input_arr.clear()
         x_grad = x.clone().detach().requires_grad_(True)
         pred = self.model(x_grad).logits
 
@@ -99,7 +78,6 @@ class Loss:
         self.iteration += 1
 
         # Get the input and target tensors
-        # list1_max, list2_max, target1, target2 = self.get_input_targeted(matmul_lists)
         inputs, targets = self.get_input_targeted(matmul_lists)
 
         # Count the number of outliers
@@ -129,16 +107,10 @@ class Loss:
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
-
             for i in range(len(inputs)):
-                loss += loss_weight * loss_fn(inputs[i], targets[i]).squeeze().mean()
-            # loss += loss_weight * loss_fn(list1_max, target1).squeeze().mean()
-            # loss += loss_weight * loss_fn(list2_max, target2).squeeze().mean()
-
-        # loss += 100 * nn.MSELoss(pred, true_label).squeeze().mean() # loss with accuracy
-
-            # loss += torch.mean(-list2_max) #different loss function
-            # loss += torch.mean(-list1_max) #different loss function
+                loss += loss_weight * loss_fn(inputs[i].to(torch.float64),
+                                              targets[i].to(torch.float64)).squeeze().mean()
+            # loss += 50 * loss_fn(pred, true_label).squeeze().mean()   # add accuracy loss
 
         self.model.zero_grad()
         loss.backward()
