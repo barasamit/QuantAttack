@@ -9,3 +9,9 @@ DeiT:
   weights_path: 'add later'
   input_size: 1600
   output_size: 500
+
+Detr:
+  model_path: 'SenseTime/deformable-detr'
+  weights_path: 'add later'
+  input_size: 1600
+  output_size: 500

@@ -22,7 +22,7 @@ class BaseConfig:
         self.root_path = ROOT
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'DeiT'  # DeiT, VIT,
+        model_name = 'Detr'  # DeiT, VIT,Detr
         # self.estimator_name = 'ResNet18'
 
         dataset_name = 'imagenet'
@@ -49,7 +49,6 @@ class BaseConfig:
         self.max_iter = self.attack_params['max_iter']
         self.use_scheduler = False
         self.scheduler = 0.5
-        # print key and value for attack parameters
 
         self.demo_mode = 'predict_one'  # 'predict_one' or 'predict_many'
 

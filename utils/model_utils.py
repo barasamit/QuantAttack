@@ -1,15 +1,23 @@
 import torch.nn as nn
 import torchvision
-from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling
+from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling, \
+    BeitForMaskedImageModeling, BeitForImageClassification, DetrForObjectDetection,ViTForMaskedImageModeling,ViTMAEModel,ViTMSNForImageClassification,BeitForSemanticSegmentation
 
 
-def get_model(cfg,model_name):
+def get_model(cfg, model_name):
     if model_name == 'VIT':
         model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",
-                                                          load_in_8bit=True, load_in_8bit_threshold=cfg.model_threshold)
+                                                          load_in_8bit=True)
     elif model_name == 'DeiT':
-        model = DeiTForMaskedImageModeling.from_pretrained("facebook/deit-base-distilled-patch16-224", device_map="auto",
-                                                          load_in_8bit=True, load_in_8bit_threshold=cfg.model_threshold)
+        model = DeiTForMaskedImageModeling.from_pretrained("facebook/deit-base-distilled-patch16-224",
+                                                           device_map="auto",
+                                                           load_in_8bit=True,
+                                                           load_in_8bit_threshold=cfg.model_threshold)
+    elif model_name == 'Detr':
+        model = BeitForImageClassification.from_pretrained("microsoft/beit-base-patch16-224",
+                                                       device_map="auto",
+                                                       load_in_8bit=True)
+
     return model
 
 
@@ -18,6 +26,8 @@ def get_model_feature_extractor(model_name):
         feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224')
     elif model_name == 'DeiT':
         feature_extractor = AutoImageProcessor.from_pretrained("facebook/deit-base-distilled-patch16-224")
+    elif model_name == 'Detr':
+        feature_extractor = AutoImageProcessor.from_pretrained("microsoft/beit-base-patch16-224")
     return feature_extractor
 
 

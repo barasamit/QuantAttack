@@ -55,7 +55,7 @@ class Attack:
 
         batch_size = self.cfg.loader_params['batch_size']
         b = [str(attack_params['norm']), str(attack_params['eps']), str(attack_params['eps_step']),
-             str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size)]
+             str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size),str(self.cfg['model_name'])]
         return '_'.join(b)
 
     def make_dir(self, path):
