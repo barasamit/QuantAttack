@@ -36,6 +36,7 @@ class ProjectedGradientDescent:
         self.max_adv = None
         self.batch_id = 0
         self.temp_max_outliers_num = 0
+        self.ids = None
         self.start_eps_step = eps_step
         self.optimizer = optim.SGD([torch.zeros(1)], lr=self.eps_step.item(),
                                    momentum=0.9)  # Initialize SGD optimizer with momentum
@@ -45,11 +46,13 @@ class ProjectedGradientDescent:
                                                                               eta_min=1e-5, last_epoch=-1)
         # self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=50, verbose=True)
 
-    def generate(self, inputs, targets, batch_info):
+    def generate(self, inputs, targets, batch_info, ids=None):
+        self.ids = ids
         res = self._generate_batch(inputs, targets, batch_info)
         self.max_adv = None
         self.batch_id = 0
         self.temp_max_outliers_num = 0
+        torch.cuda.empty_cache()  # Free up unoccupied memory
         return res
 
     def _generate_batch(self, inputs, targets, batch_info):
@@ -65,7 +68,6 @@ class ProjectedGradientDescent:
         prev_outliers_num = self.outliers_num  # Previous outlier count
 
         for i, _ in enumerate(progress_bar):
-            temp_adv_x = adv_x.clone()
             adv_x = self._compute(adv_x, inputs, targets, momentum)
             self.scheduler.step(epoch=i)
             self.eps_step = self.optimizer.param_groups[0]['lr']
@@ -74,12 +76,12 @@ class ProjectedGradientDescent:
 
             if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 3:
                 self.temp_max_outliers_num = self.outliers_num
-                self.max_adv = adv_x.clone()
+                # self.max_adv = adv_x.clone()
 
-            if self.outliers_num <= prev_outliers_num:
-                num_iter_without_outlier_increase += 1
-            else:
-                num_iter_without_outlier_increase = 0
+            # if self.outliers_num <= prev_outliers_num:
+            #     num_iter_without_outlier_increase += 1
+            # else:
+            #     num_iter_without_outlier_increase = 0
 
             # Check if the number of outliers has not increased for 100 iterations
             # if num_iter_without_outlier_increase >= 100 and self.outliers_num - prev_outliers_num <= 100:
@@ -111,7 +113,7 @@ class ProjectedGradientDescent:
 
     def _compute_perturbation(self, adv_x, targets, momentum):
         tol = 10e-8
-        grad, loss_value, self.outliers_num = self.loss_function(adv_x, targets)
+        grad, loss_value, self.outliers_num = self.loss_function(adv_x, targets, self.ids)
         self.loss_values.append(loss_value)
         grad = grad * (1 - 2 * int(self.targeted))
         if torch.any(grad.isnan()):

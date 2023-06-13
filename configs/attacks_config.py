@@ -22,8 +22,10 @@ class BaseConfig:
         self.root_path = ROOT
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'Detr'  # DeiT, VIT,Detr
-        # self.estimator_name = 'ResNet18'
+        model_name = 'Owldetection'  # DeiT, VIT, Whisper, Owldetection , other
+
+        model_config = {'VIT': 0, 'DeiT': 0, 'Whisper': 1, 'Owldetection': 2, 'other': 3}
+        self.model_config_num = model_config[model_name]
 
         dataset_name = 'imagenet'
         self._set_dataset(dataset_name)
@@ -41,7 +43,7 @@ class BaseConfig:
             'eps': 10,
             'eps_step': 0.01,
             'decay': None,
-            'max_iter': 10000,
+            'max_iter': 100,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device
@@ -59,6 +61,7 @@ class BaseConfig:
 
         self.model_threshold = 6
         self.model_threshold_dest = 7
+        self.bottom_threshold = 2
         self.target = 70
 
         self.num_topk_values = 4

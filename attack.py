@@ -43,6 +43,7 @@ class Attack:
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
 
+
         # save_class_to_file(self.cfg, self.cfg['current_dir'])
 
         # self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
@@ -55,7 +56,8 @@ class Attack:
 
         batch_size = self.cfg.loader_params['batch_size']
         b = [str(attack_params['norm']), str(attack_params['eps']), str(attack_params['eps_step']),
-             str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size),str(self.cfg['model_name'])]
+             str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size),
+             str(self.cfg['model_name'])]
         return '_'.join(b)
 
     def make_dir(self, path):
@@ -71,12 +73,16 @@ class Attack:
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
         start.record()
-        rgb = [self.model(x) for _ in range(count_forwards)]
+        with torch.no_grad():
+            rgb = [self.model(x) for _ in range(count_forwards)]
         self.outliers = outliers_arr
         end.record()
         torch.cuda.synchronize()
         total_time = (start.elapsed_time(end) / 1000.0) / count_forwards
         outliers_arr.clear()
+
+        del rgb  # Free memory used by variable rgb
+        torch.cuda.empty_cache()  # Clear up CUDA memory cache
         return total_time
 
     def calc_acc_topk(self, x_clean, x_adv, k=5):
@@ -85,11 +91,16 @@ class Attack:
 
         p_clean_indx = p_clean.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
         p_adv_indx = p_adv.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
-
-        p_adv_topk = torch.topk(p_adv.logits, k, dim=1).indices
-
         top1 = torch.equal(p_clean_indx, p_adv_indx)
-        topk = (p_clean_indx.unsqueeze(1) == p_adv_topk).any(dim=1).float().mean().item()
+
+        try:
+
+            p_adv_topk = torch.topk(p_adv.logits, k, dim=1).indices
+
+            topk = (p_clean_indx.unsqueeze(1) == p_adv_topk).any(dim=1).float().mean().item()
+
+        except:
+            topk = 0.0
 
         return top1, topk
 
@@ -100,7 +111,15 @@ class Attack:
     def calc_GPU_CPU_time_memory(self, x):
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
             with record_function("model_inference"):
-                self.model(x)
+                try:
+                    self.model(x)
+                except:
+                    if self.ids is None:
+                        with torch.no_grad():
+                            self.model(x.half())
+                    else:
+                        with torch.no_grad():
+                            self.model(input_ids=self.ids[0], pixel_values=x)
                 self.outliers = outliers_arr.copy()
 
         # ==== or ====
@@ -119,7 +138,8 @@ class Attack:
         return df
 
     @torch.no_grad()
-    def compute_success(self, x_clean, x_adv, batch_id, img_dir, sava_pd=True):
+    def compute_success(self, x_clean, x_adv, batch_id, img_dir, sava_pd=True,ids=None):
+        self.ids = ids
         results = {'batch_id': batch_id, 'clean': dict(), 'adv': dict(), "img_dir": img_dir}
 
         # Calculate Adv Memory/Time
@@ -139,9 +159,9 @@ class Attack:
         results['clean']['outliers'] = sum([len(o) for o in self.outliers])
 
         # Calculate Accuracy & top_k
-        top1, topk = self.calc_acc_topk(x_clean, x_adv)
-        results['accuracy'] = int(top1)
-        results['topk'] = int(topk)
+        # top1, topk = self.calc_acc_topk(x_clean, x_adv)
+        # results['accuracy'] = int(top1)
+        # results['topk'] = int(topk)
 
         # # Calculate GPLOPs
         # results['adv']['GFLOPs'] = self.calc_flops(x_adv)

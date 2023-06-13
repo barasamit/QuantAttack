@@ -6,8 +6,14 @@ import importlib
 import os
 
 
-def print_data_frame(y):
-    number_of_blocks = 12
+def print_data_frame(y,blocks):
+    number_of_blocks = blocks
+    for i in range(0, len(y)):
+        if len(y) % number_of_blocks != 0:
+            y = y[0:-1+i]
+        else:
+            break
+
     number_of_layers = len(y) // number_of_blocks
     data = np.array(y).reshape(number_of_blocks, number_of_layers)
     df = pd.DataFrame(data)
@@ -17,17 +23,28 @@ def print_data_frame(y):
     # print(df)
 
 
-def print_outliers(matmul_lists, outliers_arr):
+# def print_outliers(matmul_lists, outliers_arr):
+#     y = []
+#     for i, t in enumerate(matmul_lists):
+#         if t.size()[2] == 768:
+#             try:
+#                 y.append((len(outliers_arr[i]) / 768) * 100)
+#             except:
+#                 print("Error")
+#         else:
+#             y.append((len(outliers_arr[i]) / 3072) * 100)
+#     return print_data_frame(y)
+def print_outliers(matmul_lists, outliers_arr,blocks):
     y = []
     for i, t in enumerate(matmul_lists):
-        if t.size()[2] == 768:
-            try:
-                y.append((len(outliers_arr[i]) / 768) * 100)
-            except:
-                print("Error")
-        else:
-            y.append((len(outliers_arr[i]) / 3072) * 100)
-    return print_data_frame(y)
+
+        try:
+            size = t.size()[2]  # Get the size dynamically
+            y.append((len(outliers_arr[i]) / size) * 100)
+        except:
+            print("Error")
+    return print_data_frame(y,blocks)
+
 
 
 def save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None):

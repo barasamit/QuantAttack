@@ -111,7 +111,10 @@ def stack_tensors_with_same_shape(matmul_lists):
             stacked_tensors.append(stacked_tensor)
 
     # permute to get the right shape (batch, num_layers, rows, cols)
-    stacked_tensors = [tensor.permute(1, 0, 2, 3) for tensor in stacked_tensors]
+    try:
+        stacked_tensors = [tensor.permute(1, 0, 2, 3) for tensor in stacked_tensors]
+    except:
+        pass
 
     return stacked_tensors
 

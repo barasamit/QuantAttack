@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
+from datasets import load_dataset
 
 import os
 
@@ -15,8 +16,9 @@ class ImageNetDataset(Dataset):
         self.n_classes = 1000
         self.feature_extractor = feature_extractor
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.Imglist = os.listdir(os.path.join(root, "images", split))
+        self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+
         if split != "test":
             self.LabeList = os.listdir(os.path.join(root, "labels", split))
         else:
@@ -29,20 +31,45 @@ class ImageNetDataset(Dataset):
         # read images and extract features using ViT
         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
         img = Image.open(img_dir)
+        ids = None
+
         try:
-            img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+            flag = "Whisper" in self.feature_extractor.feature_extractor_type
         except:
+            flag = False
 
-            img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[index - 1])
-            img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-        # read labels
-        if self.LabeList is not None:
-            with open(os.path.join(self.root, "labels", self.split + "/" + self.LabeList[index]), 'r') as file:
-                # Read all lines of the file into a list
-                lines = file.readlines()
-            label = lines[0].split()[0]
+        if flag:
+            sample = next(iter(self.ds))
+            img_dir = "from dataset"
+            img_extractor = self.feature_extractor(
+                sample["audio"]["array"], sampling_rate=sample["audio"]["sampling_rate"], return_tensors="pt"
+            ).input_features
 
-        return img_extractor, img_dir
+        try:
+            flag = "Owl" in self.feature_extractor.feature_extractor_class
+        except:
+            flag = False
+
+
+        else:
+            try:
+                if flag:
+                    texts = [["cat", "dog", "animal","water",], ["car", "vehicle", "automobile"], ["person"]]
+                    img_extractor = self.feature_extractor(text=texts, images=img, return_tensors="pt")["pixel_values"]
+                    ids = self.feature_extractor(text=texts, images=img, return_tensors="pt")["input_ids"]
+                else:
+                    img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+            except:
+                img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[index - 1])
+                img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+            # read labels
+            if self.LabeList is not None:
+                with open(os.path.join(self.root, "labels", self.split + "/" + self.LabeList[index]), 'r') as file:
+                    # Read all lines of the file into a list
+                    lines = file.readlines()
+                label = lines[0].split()[0]
+
+        return img_extractor, img_dir,ids
 
 
 def get_dataset(dataset_name):

@@ -6,6 +6,15 @@ from utils.attack_utils import count_outliers
 from utils.general import save_graph, print_outliers
 from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
 from utils.losses_utils import clear_lists, stack_tensors_with_same_shape
+import torch.nn as nn
+
+
+class ImageData:
+    def __init__(self):
+        self._pixel_values = None
+
+    def pixel_values(self):
+        return self._pixel_values
 
 
 class Loss:
@@ -37,6 +46,7 @@ class Loss:
 
         # Get the top k values
         threshold = self.cfg.model_threshold_dest
+        bottom_threshold = self.cfg.bottom_threshold
 
         selected_values_list = []
         targets_list = []
@@ -49,10 +59,10 @@ class Loss:
             #     tensor = tensor[:, :8, :]
 
             # tensor = tensor[:, :, 0:1, :]  # take only the first row
-
+            if len(tensor.shape) < 3: continue
             tensor = tensor.abs()
             t_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
-            mask_lower = t_max > 2
+            mask_lower = t_max > bottom_threshold
             mask_upper = t_max < threshold
             # Combine the two masks using the logical AND operator &
             mask = mask_lower & mask_upper
@@ -65,13 +75,25 @@ class Loss:
 
             selected_values_list.append(selected_values)
             targets_list.append(target)
+            del tensor
+        torch.cuda.empty_cache()
 
         return selected_values_list, targets_list
 
-    def loss_gradient(self, x, y):
+    def loss_gradient(self, x, y, ids=None):
         clear = input_arr.clear()
         x_grad = x.clone().detach().requires_grad_(True)
-        pred = self.model(x_grad).logits
+        del x  # delete the original tensor to free up memory
+        torch.cuda.empty_cache()
+        if self.cfg.model_config_num == 0:
+            pred = self.model(x_grad)
+        elif self.cfg.model_config_num == 1:
+            pred = self.model(x_grad.half())  # for wisper model
+        elif self.cfg.model_config_num == 2:
+            pred = self.model(input_ids=ids[0], pixel_values=x_grad)  # for Owldetection model
+        else:
+            pred = self.model(x_grad)
+
 
         # matmul_lists = filter_items_by_pointer(input_arr.copy(), pointers.copy())
         matmul_lists = input_arr.copy()
@@ -84,36 +106,42 @@ class Loss:
         total_outliers = sum([len(l) for l in outliers_arr])
         local_total_outliers = count_outliers(outliers_arr_local,
                                               threshold=self.cfg.model_threshold)  # compare with total_outliers
-        # assert total_outliers == local_total_outliers
 
-        # Save the image
-        if self.attack_type == 'OneToOneAttack':
-            ex = "ex40"  # save only if name not exists
-            title = "max from layer column -> list1.max(dim=2)[0] list2_max = list2.max(dim=2)[0][:9]"
-            save_graph(matmul_lists, outliers_arr, self.iteration, self.max_iter, ex, title, total_outliers)
-            # save_graph(matmul_lists, outliers_arr, iteration, max_iter, ex=None, title=None, total_outliers=None)
-            # save_image(x[0], f"/sise/home/barasa/8_bit/images_changes/{self.iteration}.jpg")
-
-        outliers_df = print_outliers(matmul_lists, outliers_arr)
         if self.iteration % 200 == 0:
-            print()
+            if hasattr(self.model.config, 'num_attention_heads'):
+                blocks = self.model.config.num_attention_heads
+            else:
+                blocks = self.model.config.text_config.num_hidden_layers
+
+            outliers_df = print_outliers(matmul_lists, outliers_arr, blocks)
             print(outliers_df)
 
-        true_label = self.model(y).logits
+        # true_label = self.model(y).logits
 
-        # Clear lists
-        clear_lists(input_arr, outliers_arr, outliers_arr_local, pointers)
+        # Clear lists -
+        clear_lists(input_arr, outliers_arr, outliers_arr_local, pointers, matmul_lists)
 
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
             for i in range(len(inputs)):
-                loss += loss_weight * loss_fn(inputs[i].to(torch.float64),
-                                              targets[i].to(torch.float64)).squeeze().mean()
+                temp_loss = loss_fn(inputs[i].to(torch.float64), targets[i].to(torch.float64)).squeeze().mean()
+                loss.add_(loss_weight * temp_loss)  # use in-place addition
+                del temp_loss  # delete the temporary loss value
 
             # loss += 50 * loss_fn(pred, true_label).squeeze().mean()   # add accuracy loss
 
         self.model.zero_grad()
         loss.backward()
         grads = x_grad.grad
-        return grads, loss.item(), total_outliers
+
+
+
+        # Free up memory
+        loss_val = loss.item()
+        del loss
+        del x_grad
+        del pred
+        torch.cuda.empty_cache()
+
+        return grads, loss_val, total_outliers

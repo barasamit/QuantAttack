@@ -51,9 +51,9 @@ class ManyToManyAttack(Attack):
             # attack
             attack_images = data[0].squeeze(1).to(self.device)
             adv_x = self.attack.generate(attack_images, attack_images,
-                                         {'cur': batch_id + 1, 'total': len(self.test_loader)})
+                                         {'cur': batch_id + 1, 'total': len(self.test_loader)}, data[-1])
 
-            res = self.compute_success(attack_images, adv_x, batch_id, data[1])
+            res = self.compute_success(attack_images, adv_x, batch_id, data[1],None, data[-1])
             results_combine = pd.concat([results_combine, res], axis=0)  # combine results
 
 
@@ -61,29 +61,7 @@ def main():
     config_type = 'ManyToMany'
     cfg = config_dict[config_type]()
     attack = ManyToManyAttack(cfg)
-    attack.generate(20)  # generate k batches
-
-    # create grid search for attack parameters
-    # config_type = 'ManyToMany'
-    # cfg = config_dict[config_type]()
-    # max_iter_list = [500,1500,3000,4000,5000,6000]
-    # for max_iter in max_iter_list:
-    #     attack_params = {
-    #         'norm': 2,
-    #         'eps': 500,
-    #         'eps_step': 1,
-    #         'decay': None,
-    #         'max_iter': max_iter,
-    #         'targeted': True,
-    #         'num_random_init': 1,
-    #         'device': "cuda"
-    #     }
-    #     for k, v in attack_params.items():
-    #         print(k, v)
-    #     cfg.attack_params = attack_params
-    #     cfg.max_iter = max_iter
-    #     attack = ManyToManyAttack(cfg)
-    #     attack.generate(5)  # generate 100 batches
+    attack.generate(1000)  # generate k batches
 
 
 def main_iter_2():

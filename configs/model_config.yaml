@@ -1,17 +1,23 @@
 VIT:
   model_path: 'google/vit-base-patch16-224'
   weights_path: 'add later'
-  input_size: 1600
-  output_size: 500
+
 
 DeiT:
   model_path: 'facebook/deit-base-distilled-patch16-224'
   weights_path: 'add later'
-  input_size: 1600
-  output_size: 500
 
-Detr:
+
+Whisper:
+  model_path: "openai/whisper-tiny"
+  weights_path: 'add later'
+
+
+Owldetection:
+  model_path: "google/owlvit-base-patch32"
+  weights_path: 'add later'
+
+
+other:
   model_path: 'SenseTime/deformable-detr'
   weights_path: 'add later'
-  input_size: 1600
-  output_size: 500
