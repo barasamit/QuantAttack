@@ -31,7 +31,8 @@ class ImageNetDataset(Dataset):
         # read images and extract features using ViT
         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
         img = Image.open(img_dir)
-        ids = None
+        ids = 0
+        flag = False
 
         try:
             flag = "Whisper" in self.feature_extractor.feature_extractor_type
@@ -44,30 +45,30 @@ class ImageNetDataset(Dataset):
             img_extractor = self.feature_extractor(
                 sample["audio"]["array"], sampling_rate=sample["audio"]["sampling_rate"], return_tensors="pt"
             ).input_features
-
-        try:
-            flag = "Owl" in self.feature_extractor.feature_extractor_class
-        except:
-            flag = False
-
+            return img_extractor, img_dir, ids
 
         else:
             try:
-                if flag:
-                    texts = [["cat", "dog", "animal","water",], ["car", "vehicle", "automobile"], ["person"]]
-                    img_extractor = self.feature_extractor(text=texts, images=img, return_tensors="pt")["pixel_values"]
-                    ids = self.feature_extractor(text=texts, images=img, return_tensors="pt")["input_ids"]
-                else:
-                    img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+                flag = "Owl" in self.feature_extractor.feature_extractor_class
             except:
-                img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[index - 1])
+                flag = False
+
+        try:
+            if flag:
+                texts = [["cat", "dog", "animal","water",], ["car", "vehicle", "automobile"], ["person"]]
+                img_extractor = self.feature_extractor(text=texts, images=img, return_tensors="pt")["pixel_values"]
+                ids = self.feature_extractor(text=texts, images=img, return_tensors="pt")["input_ids"]
+            else:
                 img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-            # read labels
-            if self.LabeList is not None:
-                with open(os.path.join(self.root, "labels", self.split + "/" + self.LabeList[index]), 'r') as file:
-                    # Read all lines of the file into a list
-                    lines = file.readlines()
-                label = lines[0].split()[0]
+        except:
+            img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[index - 1])
+            img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+        # read labels
+        if self.LabeList is not None:
+            with open(os.path.join(self.root, "labels", self.split + "/" + self.LabeList[index]), 'r') as file:
+                # Read all lines of the file into a list
+                lines = file.readlines()
+            label = lines[0].split()[0]
 
         return img_extractor, img_dir,ids
 

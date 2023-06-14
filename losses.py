@@ -94,7 +94,6 @@ class Loss:
         else:
             pred = self.model(x_grad)
 
-
         # matmul_lists = filter_items_by_pointer(input_arr.copy(), pointers.copy())
         matmul_lists = input_arr.copy()
         self.iteration += 1
@@ -134,8 +133,6 @@ class Loss:
         self.model.zero_grad()
         loss.backward()
         grads = x_grad.grad
-
-
 
         # Free up memory
         loss_val = loss.item()
