@@ -114,7 +114,7 @@ class Attack:
                 try:
                     self.model(x)
                 except:
-                    if self.ids is None:
+                    if self.ids == 0:
                         with torch.no_grad():
                             self.model(x.half())
                     else:

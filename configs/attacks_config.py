@@ -22,7 +22,7 @@ class BaseConfig:
         self.root_path = ROOT
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'Owldetection'  # DeiT, VIT, Whisper, Owldetection , other
+        model_name = 'Whisper'  # DeiT, VIT, Whisper, Owldetection , other
 
         model_config = {'VIT': 0, 'DeiT': 0, 'Whisper': 1, 'Owldetection': 2, 'other': 3}
         self.model_config_num = model_config[model_name]
