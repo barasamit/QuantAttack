@@ -22,6 +22,7 @@ class ProjectedGradientDescent:
                  clip_values=(0, 1)) -> None:
         super().__init__()
         self.loss_function = loss_function
+        self.normalized_std = [0.229, 0.224, 0.225]
         self.norm = norm
         self.decay = decay
         self.max_iter = max_iter
@@ -30,6 +31,7 @@ class ProjectedGradientDescent:
         self.device = device
         self.eps_step = torch.tensor(eps_step)
         self.eps = torch.tensor(eps, dtype=torch.float32, device=device)
+
         self.clip_min = torch.tensor(clip_values[0], dtype=torch.float32, device=self.device)
         self.clip_max = torch.tensor(clip_values[1], dtype=torch.float32, device=self.device)
         self.outliers_num = 0
@@ -76,21 +78,7 @@ class ProjectedGradientDescent:
 
             if self.outliers_num > self.temp_max_outliers_num and self.batch_id > 3:
                 self.temp_max_outliers_num = self.outliers_num
-                # self.max_adv = adv_x.clone()
 
-            # if self.outliers_num <= prev_outliers_num:
-            #     num_iter_without_outlier_increase += 1
-            # else:
-            #     num_iter_without_outlier_increase = 0
-
-            # Check if the number of outliers has not increased for 100 iterations
-            # if num_iter_without_outlier_increase >= 100 and self.outliers_num - prev_outliers_num <= 100:
-            #
-            #     self.eps_step = self.start_eps_step  # Reset eps_step to the start value
-            #     self.optimizer.param_groups[0]['lr'] = self.eps_step.item()
-            #     num_iter_without_outlier_increase = 0
-
-            prev_outliers_num = self.outliers_num
 
             self.batch_id += 1
             progress_bar.set_postfix_str(
@@ -126,6 +114,14 @@ class ProjectedGradientDescent:
             grad = self.decay * momentum + grad
             # Accumulate the gradient for the next iter
             momentum += grad
+
+        if self.normalized_std:
+            grad.index_copy_(1, torch.LongTensor([0]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([0]).to(self.device)) / self.normalized_std[0])
+            grad.index_copy_(1, torch.LongTensor([1]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([1]).to(self.device)) / self.normalized_std[1])
+            grad.index_copy_(1, torch.LongTensor([2]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([2]).to(self.device)) / self.normalized_std[2])
 
         # Apply norm
         if self.norm == "inf":

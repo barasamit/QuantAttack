@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import os
 import torch
@@ -8,8 +10,9 @@ from utils.general import get_instance
 from losses import Loss
 
 from torch.profiler import profile, record_function, ProfilerActivity
-from fvcore.nn import flop_count
+# from fvcore.nn import flop_count
 import warnings
+import GPUtil
 
 warnings.filterwarnings("ignore")
 
@@ -42,7 +45,6 @@ class Attack:
         self.cfg['attack_params']['loss_function'] = self.loss.loss_gradient
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
-
 
         # save_class_to_file(self.cfg, self.cfg['current_dir'])
 
@@ -104,9 +106,15 @@ class Attack:
 
         return top1, topk
 
-    def calc_flops(self, x):
-        flops, _ = flop_count(self.model, x)
-        return sum(flops.values())
+    # def calc_flops(self, x):
+    #     flops, _ = flop_count(self.model, x)
+    #     return sum(flops.values())
+
+    def get_gpu_temperature(self):
+        gpus = GPUtil.getGPUs()
+        gpu_temperature = gpus[0].temperature
+        return gpu_temperature
+
 
     def calc_GPU_CPU_time_memory(self, x):
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
@@ -138,11 +146,13 @@ class Attack:
         return df
 
     @torch.no_grad()
-    def compute_success(self, x_clean, x_adv, batch_id, img_dir, sava_pd=True,ids=None):
+    def compute_success(self, x_clean, x_adv, batch_id, img_dir, sava_pd=True, ids=None):
         self.ids = ids
         results = {'batch_id': batch_id, 'clean': dict(), 'adv': dict(), "img_dir": img_dir}
-
+        outliers_arr.clear()
         # Calculate Adv Memory/Time
+        # print("GPU before adv Temperature:", self.get_gpu_temperature(), "°C")
+
         cpu_time, cuda_time, cpu_mem, cuda_mem = self.calc_GPU_CPU_time_memory(x_adv)
         results['adv']['CUDA_time'] = cuda_time
         results['adv']['CUDA_mem'] = cuda_mem
@@ -150,7 +160,14 @@ class Attack:
         results['adv']['CPU_mem'] = cpu_mem
         results['adv']['outliers'] = sum([len(o) for o in self.outliers])
 
+        # cool_down = 20
+        # print(f"strat sleep {cool_down} sec")
+        # time.sleep(cool_down)
+        # print("end sleep {cool_down} sec")
+
         # Calculate Clean Memory/Time
+        # print("GPU before clean Temperature:", self.get_gpu_temperature(), "°C")
+
         cpu_time, cuda_time, cpu_mem, cuda_mem = self.calc_GPU_CPU_time_memory(x_clean)
         results['clean']['CUDA_time'] = cuda_time
         results['clean']['CUDA_mem'] = cuda_mem
@@ -159,9 +176,14 @@ class Attack:
         results['clean']['outliers'] = sum([len(o) for o in self.outliers])
 
         # Calculate Accuracy & top_k
-        # top1, topk = self.calc_acc_topk(x_clean, x_adv)
-        # results['accuracy'] = int(top1)
-        # results['topk'] = int(topk)
+        try:
+            top1, topk = self.calc_acc_topk(x_clean, x_adv)
+            results['accuracy'] = int(top1)
+            results['topk'] = int(topk)
+            print("top1:", top1, "topk:", topk)
+        except:
+            results['accuracy'] = 0
+            results['topk'] = 0
 
         # # Calculate GPLOPs
         # results['adv']['GFLOPs'] = self.calc_flops(x_adv)

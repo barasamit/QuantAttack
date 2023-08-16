@@ -7,6 +7,8 @@ from utils.general import save_graph, print_outliers
 from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
 from utils.losses_utils import clear_lists, stack_tensors_with_same_shape
 import torch.nn as nn
+from torchvision.utils import save_image
+from torchmetrics.image import TotalVariation
 
 
 class ImageData:
@@ -80,10 +82,25 @@ class Loss:
 
         return selected_values_list, targets_list
 
-    def loss_gradient(self, x, y, ids=None):
-        clear = input_arr.clear()
-        x_grad = x.clone().detach().requires_grad_(True)
-        del x  # delete the original tensor to free up memory
+    def denormalize(self,x):
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+        # 3, H, W, B
+        ten = x.clone().permute(1, 2, 3, 0)
+        for t, m, s in zip(ten, mean, std):
+            t.mul_(s).add_(m)
+        # B, 3, H, W
+        return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
+
+    def loss_gradient(self, x, y, ids=None, loss_type="many_to_many"):
+        input_arr.clear()
+        # save to image
+        if loss_type == "universal":
+            x_grad = x.clone().requires_grad_(True)
+        else:
+            x_grad = x.clone().detach().requires_grad_(True)
+
+        # del x  # delete the original tensor to free up memory
         torch.cuda.empty_cache()
         if self.cfg.model_config_num == 0:
             pred = self.model(x_grad)
@@ -102,9 +119,9 @@ class Loss:
         inputs, targets = self.get_input_targeted(matmul_lists)
 
         # Count the number of outliers
-        total_outliers = sum([len(l) for l in outliers_arr])
-        local_total_outliers = count_outliers(outliers_arr_local,
-                                              threshold=self.cfg.model_threshold)  # compare with total_outliers
+        # total_outliers = sum([len(l) for l in outliers_arr])
+        total_outliers = count_outliers(outliers_arr_local,
+                                        threshold=self.cfg.model_threshold)  # compare with total_outliers
 
         if self.iteration % 200 == 0:
             if hasattr(self.model.config, 'num_attention_heads'):
@@ -115,20 +132,33 @@ class Loss:
             outliers_df = print_outliers(matmul_lists, outliers_arr, blocks)
             print(outliers_df)
 
-        # true_label = self.model(y).logits
+        true_label = self.model(y).logits
+        # if self.iteration % 100 == 0:
+        #     save_image(self.denormalize(x.clone()), f"im_change_2/outliers {total_outliers}.png")
 
         # Clear lists -
         clear_lists(input_arr, outliers_arr, outliers_arr_local, pointers, matmul_lists)
 
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
+
         for loss_fn, loss_weight in zip(self.loss_fns, self.loss_weights):
+            # add loss for Linear8Bit
             for i in range(len(inputs)):
                 temp_loss = loss_fn(inputs[i].to(torch.float64), targets[i].to(torch.float64)).squeeze().mean()
-                loss.add_(loss_weight * temp_loss)  # use in-place addition
+                loss.add_(loss_weight[0] * temp_loss)  # use in-place addition
                 del temp_loss  # delete the temporary loss value
 
-            # loss += 50 * loss_fn(pred, true_label).squeeze().mean()   # add accuracy loss
+            # add loss for accuracy
+            loss += loss_weight[1] * loss_fn(pred.logits, true_label).squeeze().mean()  # add accuracy loss
+
+            # add loss for total variation
+            tv = TotalVariation()
+            c = tv(x_grad.to("cpu"))
+            loss += loss_weight[2] * c
+
+        if loss_type == "universal":
+            return loss, total_outliers
 
         self.model.zero_grad()
         loss.backward()

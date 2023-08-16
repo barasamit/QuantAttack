@@ -1,15 +1,9 @@
 import torch.nn as nn
 import torchvision
-from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling, \
-    RegNetForImageClassification, BeitForImageClassification, DetrForObjectDetection, ViTForMaskedImageModeling, \
-    ViTMAEModel, ViTMSNForImageClassification, BeitForSemanticSegmentation, WhisperForAudioClassification, \
-    FlaxViTForImageClassification, SwinForImageClassification, Swinv2ForImageClassification, \
-    ConvNextForImageClassification, LevitForImageClassification, ImageGPTForImageClassification, \
-    EfficientFormerForImageClassification, DPTForSemanticSegmentation, DeiTForImageClassificationWithTeacher
+from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling
 
-from transformers import AutoFeatureExtractor, WhisperForAudioClassification
-from transformers import OwlViTProcessor, OwlViTForObjectDetection
-from transformers import AutoProcessor, CLIPSegForImageSegmentation
+# from transformers import AutoFeatureExtractor, WhisperForAudioClassification
+# from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
 
 def get_model(cfg, model_name):

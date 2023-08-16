@@ -34,12 +34,12 @@ class ManyToManyAttack(Attack):
 
         for batch_id, data in enumerate(self.test_loader):
 
-            if batch_id > max_batch or (batch_id % 5 == 0 and batch_id > 0):
+            if batch_id > max_batch or (batch_id % 1 == 0 and batch_id > 0):
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
-                save_image(adv_x[0], os.path.join(self.attack_dir, "adv.jpg"))
-                save_image(attack_images[0], os.path.join(self.attack_dir, "clean.jpg"))
+                save_image(self.denormalize(adv_x), os.path.join(self.attack_dir, "adv.jpg"))
+                save_image(self.denormalize(attack_images), os.path.join(self.attack_dir, "clean.jpg"))
 
                 # save attack parameters
                 with open(os.path.join(self.attack_dir, "attack_parameters.yml"), 'w') as outfile:
@@ -55,6 +55,17 @@ class ManyToManyAttack(Attack):
 
             res = self.compute_success(attack_images, adv_x, batch_id, data[1],None, data[-1])
             results_combine = pd.concat([results_combine, res], axis=0)  # combine results
+
+    def denormalize(self,x):
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+        # 3, H, W, B
+        ten = x.clone().permute(1, 2, 3, 0)
+        for t, m, s in zip(ten, mean, std):
+            t.mul_(s).add_(m)
+        # B, 3, H, W
+        return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
+
 
 
 def main():

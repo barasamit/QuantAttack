@@ -102,3 +102,22 @@ def get_instance(module_name, instance_name):
     module = importlib.import_module(module_name)
     obj = getattr(module, instance_name)
     return obj
+
+
+def get_patch(config):
+    if config.initial_patch == 'random':
+        patch = torch.rand(
+            (1, 3, config.image_size,  config.image_size),dtype=torch.float32)
+    elif config.initial_patch == 'ones':
+        patch = torch.ones(
+            (1, 3, config.image_size,  config.image_size),dtype=torch.float32)
+    elif config.initial_patch == 'zeros':
+        patch = torch.zeros(
+            (1, 3, config.image_size,  config.image_size),dtype=torch.float32)
+    elif config.initial_patch == 'half':
+        patch = torch.full(
+            (1, 3, config.image_size,  config.image_size),dtype=torch.float32)
+
+    # patch = patch.to(config.device)
+    patch = patch.requires_grad_(True)
+    return patch

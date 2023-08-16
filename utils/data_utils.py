@@ -17,60 +17,75 @@ class ImageNetDataset(Dataset):
         self.feature_extractor = feature_extractor
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.Imglist = os.listdir(os.path.join(root, "images", split))
-        self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
-        if split != "test":
-            self.LabeList = os.listdir(os.path.join(root, "labels", split))
-        else:
-            self.LabeList = None
+        self.LabeList = None
+
+        # if split != "test":
+        #     self.LabeList = os.listdir(os.path.join(root, "labels", split))
+        # else:
+        #     self.LabeList = None
 
     def __len__(self):
         return len(self.Imglist)
 
+    # def __getitem__(self, index):
+    #     ids = 0
+    #     try:
+    #         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
+    #         img = Image.open(img_dir)
+    #         img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+    #     except:
+    #         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[0]
+    #         img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[0])
+    #         img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+    #
+    #     return img_extractor, img_dir, ids
+
+    def get_image_dir(self, index):
+        try:
+            return os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
+        except:
+            return os.path.join(self.root, "images", self.split + "/") + self.Imglist[0]
+
     def __getitem__(self, index):
-        # read images and extract features using ViT
-        img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
+        img_dir = self.get_image_dir(index)
         img = Image.open(img_dir)
         ids = 0
-        flag = False
 
         try:
-            flag = "Whisper" in self.feature_extractor.feature_extractor_type
-        except:
-            flag = False
+            is_whisper = "Whisper" in self.feature_extractor.feature_extractor_type
+        except AttributeError:
+            is_whisper = False
 
-        if flag:
+        if is_whisper:
             sample = next(iter(self.ds))
-            img_dir = "from dataset"
             img_extractor = self.feature_extractor(
-                sample["audio"]["array"], sampling_rate=sample["audio"]["sampling_rate"], return_tensors="pt"
+                sample["audio"]["array"],
+                sampling_rate=sample["audio"]["sampling_rate"],
+                return_tensors="pt"
             ).input_features
-            return img_extractor, img_dir, ids
-
-        else:
-            try:
-                flag = "Owl" in self.feature_extractor.feature_extractor_class
-            except:
-                flag = False
+            return img_extractor, "from dataset", ids
 
         try:
-            if flag:
-                texts = [["cat", "dog", "animal","water",], ["car", "vehicle", "automobile"], ["person"]]
-                img_extractor = self.feature_extractor(text=texts, images=img, return_tensors="pt")["pixel_values"]
-                ids = self.feature_extractor(text=texts, images=img, return_tensors="pt")["input_ids"]
+            is_owl = "Owl" in self.feature_extractor.feature_extractor_class
+        except AttributeError:
+            is_owl = False
+
+        try:
+            if is_owl:
+                texts = [["cat", "dog", "animal", "water", ], ["car", "vehicle", "automobile"], ["person"]]
+                feature_output = self.feature_extractor(text=texts, images=img, return_tensors="pt")
+                img_extractor = feature_output["pixel_values"]
+                ids = feature_output["input_ids"]
             else:
                 img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-        except:
-            img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[index - 1])
+        except Exception:
+            img_dir = self.get_image_dir(0)
+            img = Image.open(img_dir)
             img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-        # read labels
-        if self.LabeList is not None:
-            with open(os.path.join(self.root, "labels", self.split + "/" + self.LabeList[index]), 'r') as file:
-                # Read all lines of the file into a list
-                lines = file.readlines()
-            label = lines[0].split()[0]
 
-        return img_extractor, img_dir,ids
+        return img_extractor, img_dir, ids
 
 
 def get_dataset(dataset_name):
@@ -91,12 +106,12 @@ def get_loaders(loader_params, dataset_config, splits_to_load, model_name, **kwa
         train_loader = DataLoader(train_data,
                                   batch_size=loader_params['batch_size'],
                                   num_workers=loader_params['num_workers'],
-                                  shuffle=True,
+                                  shuffle=False,
                                   pin_memory=True)
 
     if 'validation' in splits_to_load:
         val_data = dataset(root=dataset_config['root_path'],
-                           split='val')
+                           split='val', feature_extractor=model_feature_extractor)
         val_loader = DataLoader(val_data,
                                 batch_size=loader_params['batch_size'],
                                 num_workers=loader_params['num_workers'] // 2,
@@ -110,13 +125,14 @@ def get_loaders(loader_params, dataset_config, splits_to_load, model_name, **kwa
                                  num_workers=loader_params['num_workers'] // 2,
                                  shuffle=False,
                                  pin_memory=True)
-    if train_loader is not None and val_loader is not None:
-        train_data = ConcatDataset([train_data, val_data])
 
-        train_loader = DataLoader(train_data,
-                                  batch_size=loader_params['batch_size'],
-                                  num_workers=loader_params['num_workers'],
-                                  shuffle=True,
-                                  pin_memory=True)
+    # if train_loader is not None and val_loader is not None:
+    #     train_data = ConcatDataset([train_data, val_data])
+    #
+    #     train_loader = DataLoader(train_data,
+    #                               batch_size=loader_params['batch_size'],
+    #                               num_workers=loader_params['num_workers'],
+    #                               shuffle=True,
+    #                               pin_memory=True)
 
     return train_loader, val_loader, test_loader
