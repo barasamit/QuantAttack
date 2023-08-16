@@ -1,1 +1,0 @@
-max from layer column -> list1.max(dim=2)[0] list2_max = list2.max(dim=2)[0][:4]  
