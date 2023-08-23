@@ -17,7 +17,7 @@ class ImageNetDataset(Dataset):
         self.feature_extractor = feature_extractor
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.Imglist = os.listdir(os.path.join(root, "images", split))
-        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+        self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
         self.LabeList = None
 

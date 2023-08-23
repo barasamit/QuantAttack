@@ -115,13 +115,6 @@ class ProjectedGradientDescent:
             # Accumulate the gradient for the next iter
             momentum += grad
 
-        if self.normalized_std:
-            grad.index_copy_(1, torch.LongTensor([0]).to(self.device),
-                             grad.index_select(1, torch.LongTensor([0]).to(self.device)) / self.normalized_std[0])
-            grad.index_copy_(1, torch.LongTensor([1]).to(self.device),
-                             grad.index_select(1, torch.LongTensor([1]).to(self.device)) / self.normalized_std[1])
-            grad.index_copy_(1, torch.LongTensor([2]).to(self.device),
-                             grad.index_select(1, torch.LongTensor([2]).to(self.device)) / self.normalized_std[2])
 
         # Apply norm
         if self.norm == "inf":
@@ -132,6 +125,15 @@ class ProjectedGradientDescent:
         elif self.norm == 2:
             ind = tuple(range(1, len(adv_x.shape)))
             grad = grad / (torch.sqrt(torch.sum(grad * grad, dim=ind, keepdim=True)) + tol)
+
+        if self.normalized_std:
+            grad.index_copy_(1, torch.LongTensor([0]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([0]).to(self.device)) / self.normalized_std[0])
+            grad.index_copy_(1, torch.LongTensor([1]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([1]).to(self.device)) / self.normalized_std[1])
+            grad.index_copy_(1, torch.LongTensor([2]).to(self.device),
+                             grad.index_select(1, torch.LongTensor([2]).to(self.device)) / self.normalized_std[2])
+
 
         return grad
 

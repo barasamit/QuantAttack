@@ -23,6 +23,7 @@ class BaseConfig:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         model_name = 'VIT'  # DeiT, VIT, Whisper, Owldetection , other
+        attack_type = 'single'  # 'universal', 'single', 'class'  # check attack config yml
 
         model_config = {'VIT': 0, 'DeiT': 0, 'Whisper': 1, 'Owldetection': 2, 'other': 3}
         self.model_config_num = model_config[model_name]
@@ -33,24 +34,34 @@ class BaseConfig:
         self._set_dataset(dataset_name)
 
         self.loss_func_params = {'MSE': {}}  # BCEWithLogitsLoss , MSE
-
-        self.loss_params = {
-            'weights': [[1, 0, 0]]  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
-        }
-
         self.attack_name = 'PGD'
 
+        self.loss_params = {
+            'weights': [[1, 50, 0.01]]
+            # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
+        }
         self.attack_params = {
-            'norm': "inf",
-            'eps': 0.3,
-            'eps_step': 0.0005,
+            'norm': "inf",  # "inf", 2, 1
+            'eps': 0.1,  # 0.3 best
+            'eps_step': 0.001,  # 0.00025 best, its also lr in universal attack
             'decay': None,
-            'max_iter': 29990,
+            'max_iter': 1999,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device,
-            'clip_values': (-3, 3),
+            'clip_values': (-1, 1),
         }
+
+        ##################################################################################
+        # Universal attack
+        self.initial_patch = "zeros"  # "random" ,"zero", "ones"
+        self.image_size = 224
+        self.epochs = 250
+        self.number_of_training_images = 250
+        self.number_of_val_images = 50
+        self.number_of_test_images = 100
+        ##################################################################################
+
         self.max_iter = self.attack_params['max_iter']
         self.use_scheduler = False
         self.scheduler = 0.5
@@ -72,15 +83,6 @@ class BaseConfig:
         self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
 
         self.blocks_weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # 12 blocks in VIT
-        ##################################################################################
-        # Universal attack
-        self.initial_patch = "random"  # "random" ,"zero", "ones"
-        self.image_size = 224
-        self.epochs = 1000
-        self.number_of_training_images = 500
-        self.number_of_val_images = 50
-        self.number_of_test_images = 100
-        ##################################################################################
 
         self._set_model(model_name)
         self._set_losses(self.loss_func_params)
@@ -135,11 +137,6 @@ class OneToOneAttackConfig(BaseConfig):
 class ManyToManyAttackConfig(BaseConfig):
     def __init__(self):
         super(ManyToManyAttackConfig, self).__init__()
-
-        self.loader_params = {
-            'batch_size': 1,
-            'num_workers': 4
-        }
 
 
 class UniversalAttackConfig(BaseConfig):

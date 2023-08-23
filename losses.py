@@ -119,17 +119,18 @@ class Loss:
         inputs, targets = self.get_input_targeted(matmul_lists)
 
         # Count the number of outliers
-        # total_outliers = sum([len(l) for l in outliers_arr])
+        total_outliers = sum([len(l) for l in outliers_arr])
         total_outliers = count_outliers(outliers_arr_local,
                                         threshold=self.cfg.model_threshold)  # compare with total_outliers
 
-        if self.iteration % 200 == 0:
+        if self.iteration % 200 == 0 or self.iteration == 0:
             if hasattr(self.model.config, 'num_attention_heads'):
                 blocks = self.model.config.num_attention_heads
             else:
                 blocks = self.model.config.text_config.num_hidden_layers
 
             outliers_df = print_outliers(matmul_lists, outliers_arr, blocks)
+            print()
             print(outliers_df)
 
         true_label = self.model(y).logits

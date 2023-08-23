@@ -1,12 +1,10 @@
 import math
 import os
-import warnings
 
 import yaml
 
 from configs.attacks_config import config_dict
 from utils.data_utils import get_loaders
-# from visualization.plots import loss_plot, cm_plot
 from attack import Attack
 import pandas as pd
 import torch
@@ -21,7 +19,7 @@ class ManyToManyAttack(Attack):
         super().__init__(cfg)
 
         dataset_params = {'random_pair': True, 'load_reconstruct': True, 'load_lensed': True}
-        _, _, self.test_loader = get_loaders(self.cfg.loader_params, self.cfg.dataset_config, ['test'],
+        _, self.test_loader,_ = get_loaders(self.cfg.loader_params, self.cfg.dataset_config, ['validation','test'],
                                              model_name=self.cfg.model_name,
                                              **dataset_params)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -39,7 +37,11 @@ class ManyToManyAttack(Attack):
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
                 save_image(self.denormalize(adv_x), os.path.join(self.attack_dir, "adv.jpg"))
+                torch.save(adv_x, os.path.join(self.attack_dir, "adv.pt"))
                 save_image(self.denormalize(attack_images), os.path.join(self.attack_dir, "clean.jpg"))
+                torch.save(attack_images, os.path.join(self.attack_dir, "clean.pt"))
+                torch.save(adv_x[0] - attack_images[0] , os.path.join(self.attack_dir, "perturbation_torch.pt"))
+
 
                 # save attack parameters
                 with open(os.path.join(self.attack_dir, "attack_parameters.yml"), 'w') as outfile:

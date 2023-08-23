@@ -10,3 +10,4 @@ def count_outliers(outliers_arr, threshold):
         column_mask = torch.any(torch.ge(abs_tensor, threshold), dim=1)
         num_columns_with_outliers += torch.sum(column_mask).item()
     return num_columns_with_outliers // batch_size
+    # return num_columns_with_outliers

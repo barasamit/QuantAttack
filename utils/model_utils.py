@@ -2,8 +2,8 @@ import torch.nn as nn
 import torchvision
 from transformers import AutoImageProcessor, ViTForImageClassification, ViTFeatureExtractor, DeiTForMaskedImageModeling
 
-# from transformers import AutoFeatureExtractor, WhisperForAudioClassification
-# from transformers import OwlViTProcessor, OwlViTForObjectDetection
+from transformers import AutoFeatureExtractor, WhisperForAudioClassification
+from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
 
 def get_model(cfg, model_name):
@@ -24,7 +24,7 @@ def get_model(cfg, model_name):
                                                          load_in_8bit=True)
 
     elif model_name == 'other':
-        model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32", device_map="auto",
+        model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch16", device_map="auto",
                                                          load_in_8bit=True)
     return model
 
@@ -42,7 +42,7 @@ def get_model_feature_extractor(model_name):
         feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-tiny")
 
     elif model_name == 'Owldetection':
-        feature_extractor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
+        feature_extractor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch16")
 
     elif model_name == 'other':
         feature_extractor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
