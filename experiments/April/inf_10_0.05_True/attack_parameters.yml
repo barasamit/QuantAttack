@@ -1,8 +1,0 @@
-decay: null
-device: cuda
-eps: 10
-eps_step: 0.05
-max_iter: 100
-norm: inf
-num_random_init: 1
-targeted: true

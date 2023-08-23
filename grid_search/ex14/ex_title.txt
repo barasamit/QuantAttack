@@ -1,1 +1,0 @@
-max from layer column -> list1_max = list1.topk(1, dim=2)[0]

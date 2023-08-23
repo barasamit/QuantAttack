@@ -1,1 +1,0 @@
-max from each layer column -> only list2
