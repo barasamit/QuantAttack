@@ -33,24 +33,21 @@ class Attack:
             module.register_forward_hook(hook_fn)
 
         self.feature_extractor = get_model_feature_extractor(self.cfg['model_name'])
+        self.model_std = self.feature_extractor.image_std
+        self.model_mean = self.feature_extractor.image_mean
         self.clean_time = 0
         self.adv_time = 0
         self.outliers = []
 
-        s = ''
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
                                  self.cfg['losses_config']['class_name'])(**self.cfg['loss_func_params'])
 
         self.loss = Loss(self.model, [loss_func], "", self.cfg, **self.cfg['loss_params'])
         self.cfg['attack_params']['loss_function'] = self.loss.loss_gradient
+        self.cfg['attack_params']['normalized_std'] = self.model_std
+
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
-
-        # save_class_to_file(self.cfg, self.cfg['current_dir'])
-
-        # self.gts = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        # self.preds_clean = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
-        # self.preds_adv = {i: [] for i in range(0, self.cfg['estimator_config']['num_of_classes'])}
 
     def get_name(self):
         attack_params = self.cfg.attack_params
@@ -65,11 +62,6 @@ class Attack:
     def make_dir(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
-
-    def register_loss_values(self, batch_id):
-        batch_result = pd.Series([f'batch{batch_id}'] + self.attack.loss_values)
-        batch_result.to_frame().T.to_csv(os.path.join(self.cfg['current_dir'], 'loss_results.csv'), mode='a',
-                                         header=False, index=False)
 
     def calc_model_time(self, x, count_forwards=15):
         start = torch.cuda.Event(enable_timing=True)
@@ -114,7 +106,6 @@ class Attack:
         gpus = GPUtil.getGPUs()
         gpu_temperature = gpus[0].temperature
         return gpu_temperature
-
 
     def calc_GPU_CPU_time_memory(self, x):
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:

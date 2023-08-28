@@ -1,4 +1,5 @@
 import torch
+import torchvision
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from datasets import load_dataset
 
@@ -17,9 +18,15 @@ class ImageNetDataset(Dataset):
         self.feature_extractor = feature_extractor
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.Imglist = os.listdir(os.path.join(root, "images", split))
-        self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
         self.LabeList = None
+        self.transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(size=int((256 / 224) * 224), interpolation=3),
+            torchvision.transforms.CenterCrop(224),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        ])
 
         # if split != "test":
         #     self.LabeList = os.listdir(os.path.join(root, "labels", split))
@@ -79,7 +86,9 @@ class ImageNetDataset(Dataset):
                 img_extractor = feature_output["pixel_values"]
                 ids = feature_output["input_ids"]
             else:
-                img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+                # img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+                img_extractor = self.transforms(img)
+
         except Exception:
             img_dir = self.get_image_dir(0)
             img = Image.open(img_dir)
@@ -114,7 +123,7 @@ def get_loaders(loader_params, dataset_config, splits_to_load, model_name, **kwa
                            split='val', feature_extractor=model_feature_extractor)
         val_loader = DataLoader(val_data,
                                 batch_size=loader_params['batch_size'],
-                                num_workers=loader_params['num_workers'] // 2,
+                                num_workers=loader_params['num_workers'] ,
                                 shuffle=False,
                                 pin_memory=True)
     if 'test' in splits_to_load:

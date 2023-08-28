@@ -26,26 +26,30 @@ def get_model(cfg, model_name):
     elif model_name == 'other':
         model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch16", device_map="auto",
                                                          load_in_8bit=True)
+    model.eval()
     return model
 
 
 def get_model_feature_extractor(model_name):
     feature_extractor = None
-
+    dct = {}
+    # dct = {"image_mean": [0.485, 0.456, 0.406],
+    #          "image_std": [0.229, 0.224, 0.225]}
     if model_name == 'VIT':
-        feature_extractor = AutoImageProcessor.from_pretrained('google/vit-base-patch16-224')
+        feature_extractor = AutoImageProcessor.from_pretrained('google/vit-base-patch16-224',**dct)
 
     elif model_name == 'DeiT':
-        feature_extractor = AutoImageProcessor.from_pretrained("facebook/deit-base-distilled-patch16-224")
+        feature_extractor = AutoImageProcessor.from_pretrained("facebook/deit-base-distilled-patch16-224",**dct)
 
     elif model_name == 'Whisper':
-        feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-tiny")
+        feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-tiny",**dct)
 
     elif model_name == 'Owldetection':
         feature_extractor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch16")
 
     elif model_name == 'other':
         feature_extractor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
+
 
     return feature_extractor
 

@@ -23,9 +23,10 @@ class BaseConfig:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         model_name = 'VIT'  # DeiT, VIT, Whisper, Owldetection , other
-        attack_type = 'single'  # 'universal', 'single', 'class'  # check attack config yml
+        attack_type = 'universal'  # 'universal', 'single', 'class'  # check attack config yml
 
         model_config = {'VIT': 0, 'DeiT': 0, 'Whisper': 1, 'Owldetection': 2, 'other': 3}
+        loss_param_config = {'VIT': [1, 50, 0.01], 'DeiT': [1, 50, 0.01], 'Whisper': [1, 0, 0], 'Owldetection': [1, 0, 0], 'other': [1, 0, 0]}
         self.model_config_num = model_config[model_name]
 
         print("Using model: ", model_name)
@@ -36,27 +37,33 @@ class BaseConfig:
         self.loss_func_params = {'MSE': {}}  # BCEWithLogitsLoss , MSE
         self.attack_name = 'PGD'
 
-        self.loss_params = {
-            'weights': [[1, 50, 0.01]]
-            # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
-        }
+        if attack_type == 'single':
+            self.loss_params = {
+                'weights': [loss_param_config[model_name]]
+                # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
+            }
+        else:
+            self.loss_params = {
+                'weights': [loss_param_config["other"]]}
+
         self.attack_params = {
             'norm': "inf",  # "inf", 2, 1
-            'eps': 0.1,  # 0.3 best
-            'eps_step': 0.001,  # 0.00025 best, its also lr in universal attack
+            'eps': 0.2,  # 0.3 best
+            'eps_step': 0.0025,  # 0.00025 best, its also lr in universal attack
             'decay': None,
-            'max_iter': 1999,
+            'max_iter': 2999,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device,
-            'clip_values': (-1, 1),
+            'clip_values': (-3, 3),
+            "normalized_std": None,  # [0.485, 0.456, 0.406] for imagenet
         }
 
         ##################################################################################
         # Universal attack
         self.initial_patch = "zeros"  # "random" ,"zero", "ones"
         self.image_size = 224
-        self.epochs = 250
+        self.epochs = 500
         self.number_of_training_images = 250
         self.number_of_val_images = 50
         self.number_of_test_images = 100
@@ -70,7 +77,7 @@ class BaseConfig:
 
         self.loader_params = {
             'batch_size': 1,
-            'num_workers': 4
+            'num_workers': 1
         }
 
         self.model_threshold = 6

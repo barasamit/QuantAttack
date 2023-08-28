@@ -19,10 +19,11 @@ class ProjectedGradientDescent:
                  targeted=False,
                  num_random_init=1,
                  device='gpu',
-                 clip_values=(0, 1)) -> None:
+                 clip_values=(0, 1),
+                 normalized_std = None) -> None:
         super().__init__()
         self.loss_function = loss_function
-        self.normalized_std = [0.229, 0.224, 0.225]
+        self.normalized_std = normalized_std
         self.norm = norm
         self.decay = decay
         self.max_iter = max_iter
