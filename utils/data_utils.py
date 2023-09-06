@@ -21,33 +21,9 @@ class ImageNetDataset(Dataset):
         # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
         self.LabeList = None
-        self.transforms = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(size=int((256 / 224) * 224), interpolation=3),
-            torchvision.transforms.CenterCrop(224),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-        ])
-
-        # if split != "test":
-        #     self.LabeList = os.listdir(os.path.join(root, "labels", split))
-        # else:
-        #     self.LabeList = None
 
     def __len__(self):
         return len(self.Imglist)
-
-    # def __getitem__(self, index):
-    #     ids = 0
-    #     try:
-    #         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[index]
-    #         img = Image.open(img_dir)
-    #         img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-    #     except:
-    #         img_dir = os.path.join(self.root, "images", self.split + "/") + self.Imglist[0]
-    #         img = Image.open(os.path.join(self.root, "images", self.split + "/") + self.Imglist[0])
-    #         img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-    #
-    #     return img_extractor, img_dir, ids
 
     def get_image_dir(self, index):
         try:
@@ -56,6 +32,10 @@ class ImageNetDataset(Dataset):
             return os.path.join(self.root, "images", self.split + "/") + self.Imglist[0]
 
     def __getitem__(self, index):
+
+
+
+
         img_dir = self.get_image_dir(index)
         img = Image.open(img_dir)
         ids = 0
@@ -86,8 +66,8 @@ class ImageNetDataset(Dataset):
                 img_extractor = feature_output["pixel_values"]
                 ids = feature_output["input_ids"]
             else:
-                # img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
-                img_extractor = self.transforms(img)
+                img_extractor = self.feature_extractor(images=img, return_tensors="pt")["pixel_values"]
+                # img_extractor = self.transforms(img)
 
         except Exception:
             img_dir = self.get_image_dir(0)

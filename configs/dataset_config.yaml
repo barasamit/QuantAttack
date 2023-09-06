@@ -1,17 +1,11 @@
 imagenet:
   dataset_name: 'imagenet'
-#  for universal attack and single attack
+#  for universal attack and single attack '/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use'
   root_path: '/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use'
 
 
 # for class universal attack - choose from the following: n01495701,n01531178, n01644900, n01688243, n06874185
 #  root_path: "/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use/images/train/n01495701/"
 
-  height: 270
-  width: 480
-  active_output_indices:
-    x1: 60
-    x2: -1
-    y1: 62
-    y2: -38
+
 

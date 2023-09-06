@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import torch
 from utils.model_utils import get_model, get_model_feature_extractor
-from utils.init_collect_arrays import outliers_arr, hook_fn
+from utils.init_collect_arrays import outliers_arr, hook_fn,outliers_arr_local
 
 from utils.general import get_instance
 from losses import Loss
@@ -13,7 +13,8 @@ from torch.profiler import profile, record_function, ProfilerActivity
 # from fvcore.nn import flop_count
 import warnings
 import GPUtil
-
+from utils.attack_utils import count_outliers
+import pynvml
 warnings.filterwarnings("ignore")
 
 
@@ -23,9 +24,7 @@ class Attack:
         self.cfg = cfg
         self.cfg.attack_type = self.__class__.__name__
 
-        self.attack_dir = os.path.join(self.cfg['current_dir'], self.get_name())
-        self.make_dir(self.attack_dir)
-        self.file_name = os.path.join(self.attack_dir, f"results.csv")
+
 
         self.model = get_model(cfg, self.cfg['model_name'])
         # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
@@ -49,6 +48,12 @@ class Attack:
         self.attack = get_instance(self.cfg['attack_config']['module_name'],
                                    self.cfg['attack_config']['class_name'])(**self.cfg['attack_params'])
 
+
+        self.weights = self.cfg.loss_params['weights']
+        self.attack_dir = os.path.join(self.cfg['current_dir'], self.get_name())
+        self.make_dir(self.attack_dir)
+        self.file_name = os.path.join(self.attack_dir, f"results.csv")
+
     def get_name(self):
         attack_params = self.cfg.attack_params
         k = self.cfg.num_topk_values
@@ -56,7 +61,8 @@ class Attack:
         batch_size = self.cfg.loader_params['batch_size']
         b = [str(attack_params['norm']), str(attack_params['eps']), str(attack_params['eps_step']),
              str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size),
-             str(self.cfg['model_name'])]
+             str(self.cfg['model_name']),str(self.weights)]
+
         return '_'.join(b)
 
     def make_dir(self, path):
@@ -69,11 +75,12 @@ class Attack:
         start.record()
         with torch.no_grad():
             rgb = [self.model(x) for _ in range(count_forwards)]
-        self.outliers = outliers_arr
+        self.outliers = count_outliers(outliers_arr_local,
+                                        threshold=self.cfg.model_threshold)
         end.record()
         torch.cuda.synchronize()
         total_time = (start.elapsed_time(end) / 1000.0) / count_forwards
-        outliers_arr.clear()
+        outliers_arr_local.clear()
 
         del rgb  # Free memory used by variable rgb
         torch.cuda.empty_cache()  # Clear up CUDA memory cache
@@ -107,11 +114,21 @@ class Attack:
         gpu_temperature = gpus[0].temperature
         return gpu_temperature
 
+    def measure_gpu_power(self, handle, iterr=10):
+        before_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+
+
+        after_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+
+        energy_delta = after_energy - before_energy
+
+        return energy_delta
+
     def calc_GPU_CPU_time_memory(self, x):
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
             with record_function("model_inference"):
                 try:
-                    self.model(x)
+                    self.model(x).logits.sum().item()
                 except:
                     if self.ids == 0:
                         with torch.no_grad():
@@ -119,14 +136,15 @@ class Attack:
                     else:
                         with torch.no_grad():
                             self.model(input_ids=self.ids[0], pixel_values=x)
-                self.outliers = outliers_arr.copy()
+                self.outliers = count_outliers(outliers_arr_local,
+                                        threshold=self.cfg.model_threshold)
 
         # ==== or ====
         cpu_time = prof.profiler.total_average().self_cpu_time_total / 1000.0  # in mil-second
         cuda_time = prof.profiler.total_average().self_cuda_time_total / 1000.0  # in mil-second
         cpu_mem = prof.profiler.total_average().cpu_memory_usage / (2 ** 20)  # in Mbits
         cuda_mem = prof.profiler.total_average().cuda_memory_usage / (2 ** 20)  # in Mbits
-        outliers_arr.clear()
+        outliers_arr_local.clear()
         return cpu_time, cuda_time, cpu_mem, cuda_mem
 
     def dict_to_df(self, results):
@@ -138,18 +156,26 @@ class Attack:
 
     @torch.no_grad()
     def compute_success(self, x_clean, x_adv, batch_id, img_dir, sava_pd=True, ids=None):
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
         self.ids = ids
         results = {'batch_id': batch_id, 'clean': dict(), 'adv': dict(), "img_dir": img_dir}
-        outliers_arr.clear()
-        # Calculate Adv Memory/Time
-        # print("GPU before adv Temperature:", self.get_gpu_temperature(), "°C")
+        outliers_arr_local.clear()
 
+        before_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
         cpu_time, cuda_time, cpu_mem, cuda_mem = self.calc_GPU_CPU_time_memory(x_adv)
+        after_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+
+        energy_delta = after_energy - before_energy
+
+        results['adv']['power_usage'] = energy_delta
+
         results['adv']['CUDA_time'] = cuda_time
         results['adv']['CUDA_mem'] = cuda_mem
         results['adv']['CPU_time'] = cpu_time
         results['adv']['CPU_mem'] = cpu_mem
-        results['adv']['outliers'] = sum([len(o) for o in self.outliers])
+        results['adv']['outliers'] = self.outliers[0]
 
         # cool_down = 20
         # print(f"strat sleep {cool_down} sec")
@@ -158,13 +184,17 @@ class Attack:
 
         # Calculate Clean Memory/Time
         # print("GPU before clean Temperature:", self.get_gpu_temperature(), "°C")
-
+        before_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
         cpu_time, cuda_time, cpu_mem, cuda_mem = self.calc_GPU_CPU_time_memory(x_clean)
+        after_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+        results['clean']['power_usage'] = after_energy - before_energy
+
+
         results['clean']['CUDA_time'] = cuda_time
         results['clean']['CUDA_mem'] = cuda_mem
         results['clean']['CPU_time'] = cpu_time
         results['clean']['CPU_mem'] = cpu_mem
-        results['clean']['outliers'] = sum([len(o) for o in self.outliers])
+        results['clean']['outliers'] = self.outliers[0]
 
         # Calculate Accuracy & top_k
         try:
@@ -176,8 +206,6 @@ class Attack:
             results['accuracy'] = 0
             results['topk'] = 0
 
-        # # Calculate GPLOPs
-        # results['adv']['GFLOPs'] = self.calc_flops(x_adv)
-        # results['clean']['GFLOPs'] = self.calc_flops(x_clean)
 
+        # print(f"power_usage_clean: {results['clean']['power_usage']}, power_usage_adv: {results['adv']['power_usage']}")
         return self.dict_to_df(results)

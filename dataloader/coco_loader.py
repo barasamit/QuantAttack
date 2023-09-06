@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 import collections
 import torch
-import torchvision
 
 from torch.utils import data
 from tqdm import tqdm

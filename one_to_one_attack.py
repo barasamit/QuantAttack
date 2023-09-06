@@ -13,7 +13,7 @@ class OneToOneAttack(Attack):
             "pixel_values"]
 
     def generate(self):
-        _ = self.attack.generate(self.attack_image_diff.to("cuda"), self.pred_target, {'cur': 1, 'total': 1})
+        _ = self.attack.generate(self.attack_image_diff.to("cuda"), self.pred_target.to("cuda"), {'cur': 1, 'total': 1})
 
 
 def main():

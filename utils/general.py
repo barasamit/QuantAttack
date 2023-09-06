@@ -40,7 +40,7 @@ def print_outliers(matmul_lists, outliers_arr,blocks):
 
         try:
             size = t.size()[2]  # Get the size dynamically
-            y.append((len(outliers_arr[i]) / size) * 100)
+            y.append((outliers_arr[i] / size) * 100)
         except:
             print("Error")
     return print_data_frame(y,blocks)

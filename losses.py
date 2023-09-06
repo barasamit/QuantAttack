@@ -118,7 +118,7 @@ class Loss:
 
         # Count the number of outliers
         # total_outliers = sum([len(l) for l in outliers_arr])
-        total_outliers = count_outliers(outliers_arr_local,
+        total_outliers,outs_ratio = count_outliers(outliers_arr_local,
                                         threshold=self.cfg.model_threshold)  # compare with total_outliers
 
         if self.iteration % 200 == 0 or self.iteration == 0:
@@ -127,7 +127,7 @@ class Loss:
             else:
                 blocks = self.model.config.text_config.num_hidden_layers
 
-            outliers_df = print_outliers(matmul_lists, outliers_arr, blocks)
+            outliers_df = print_outliers(matmul_lists, outs_ratio, blocks)
             print()
             print(outliers_df)
 

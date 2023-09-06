@@ -1,6 +1,6 @@
 import subprocess
 
 subprocess.call(['sbatch', 'train_GPU.example'])
-#subprocess.call(['python', 'eval_1.py'])
+#subprocess.call(['python', 'sum_results.py'])
 
 # vision transformerss from huggingface
