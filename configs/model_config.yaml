@@ -17,7 +17,50 @@ Owldetection:
   model_path: "google/owlvit-base-patch32"
   weights_path: 'add later'
 
+Detr:
+  model_path: "facebook/detr-resnet-50"
+  weights_path: 'add later'
+yolos:
+  model_path: "hustvl/yolos-small"
+  weights_path: 'add later'
 
+yolos_base:
+  model_path: "hustvl/yolos-small"
+  weights_path: 'add later'
+
+gpt2:
+  model_path: "nlpconnect/vit-gpt2-image-captioning"
+  weights_path: 'add later'
+
+blip:
+  model_path: "nlpconnect/blip-image-captioning"
+  weights_path: 'add later'
+
+git:
+    model_path: "microsoft/git-base-coco"
+    weights_path: 'add later'
+
+VIT_large:
+    model_path: "zz"
+    weights_path: 'add later'
+VIT_384:
+    model_path: "zz"
+    weights_path: 'add later'
+DeiT_large:
+    model_path: "zz"
+    weights_path: 'add later'
+BEiT_large:
+    model_path: "zz"
+    weights_path: 'add later'
+BEiT_base:
+    model_path: "zz"
+    weights_path: 'add later'
+swin_tiny:
+    model_path: "zz"
+    weights_path: 'add later'
+swin_base:
+    model_path: "zz"
+    weights_path: 'add later'
 other:
   model_path: 'SenseTime/deformable-detr'
   weights_path: 'add later'

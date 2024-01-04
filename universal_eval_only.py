@@ -14,6 +14,7 @@ from attack import Attack
 from configs.attacks_config import config_dict
 from utils.data_utils import get_loaders
 from utils.general import get_patch
+from tqdm import tqdm
 
 
 # import sys
@@ -41,12 +42,16 @@ class UniversalAttack(Attack):
         self.model_name = self.cfg.model_name
         self.lr = self.attack.eps_step
         self.cls = None
-        self.mask[..., 16:, 16:] = 0  # comment if you want full image pixels
+        self.start_num = 0
 
     def generate(self):
         if self.cls is None:
+            main_folder = os.path.join("/sise/home/barasa/8_bits_attack/experiments/Final_results/Universal/",
+                                       self.model_name)
             self.name = f"lr_{self.lr.item()}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_name{self.model_name}.csv"
         else:
+            main_folder = os.path.join("/sise/home/barasa/8_bits_attack/experiments/Final_results/Class_universal/",
+                                       self.model_name)
             self.name = f"lr_{self.lr.item()}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_cls_{self.cls}_name{self.model_name}.csv"
         print("Starting Universal attack...")
         print("###############################################")
@@ -60,102 +65,67 @@ class UniversalAttack(Attack):
         print("###############################################")
 
         # create dir
-        Path(os.path.join(self.cfg.current_dir, self.name)).mkdir(parents=True, exist_ok=True)
-        main_dir = os.path.join(self.cfg.current_dir, self.name)
-        Path(os.path.join(main_dir, "images")).mkdir(parents=True, exist_ok=True)
+        # Path(os.path.join(self.cfg.current_dir, self.name)).mkdir(parents=True, exist_ok=True)
+        # main_dir = os.path.join(self.cfg.current_dir, self.name)
+        # Path(os.path.join(main_dir, "images")).mkdir(parents=True, exist_ok=True)
 
         results_combine = pd.DataFrame()
 
-        self.patch = get_patch
-        adv_pert_cpu = self.patch(self.cfg)
 
-        running_loss = {'train': [],
-                        'val': []}
+        files = os.listdir(main_folder)[self.start_num:]
+        for file in files:
+            main_dir = os.path.join(main_folder, file)
+            try:
+                adv_pert_cpu = torch.load(os.path.join(main_dir, "perturbation_torch.pt"))
+            except:
+                continue
+            if self.cls:
+                if file.split("_")[-2] != self.cls:
+                    continue
 
-        for epoch in range(self.cfg.epochs):
+            dir = os.path.join(main_dir, "new_" + self.csv_name)
+            num_rows = None
+            # to skip already computed images
+            if os.path.exists(dir):
+                try:
+                    results_combine = pd.read_csv(dir)
+                    results_combine = results_combine.drop(results_combine.index[-1])
+                    num_rows = len(results_combine)
+                except:
+                    pass
+            with torch.no_grad():
+                for batch_id, (batch, img_dir, _) in enumerate(tqdm(self.test_loader)):
+                    if num_rows and batch_id < num_rows:
+                        continue
+                    print(f"batch{batch_id}")
+                    if batch_id >= self.number_of_test_images: break  # self.cfg.test_success_size
+                    batch = batch.to(self.attack.device)
+                    adv_pert_gpu = adv_pert_cpu.to(self.attack.device)
+                    images_with_pert = self.apply_perturbation(batch, adv_pert_gpu)
+                    if len(images_with_pert.shape) > 4:
+                        images_with_pert = images_with_pert.squeeze(0)
+                    if len(batch.shape) > 4:
+                        batch = batch.squeeze(0)
+                    results = self.compute_success(batch, images_with_pert, batch_id, img_dir)
+                    results_combine = pd.concat([results_combine, results], axis=0)
+                    print("saving results... at ", os.path.join(main_dir, self.csv_name))
+                    results_combine.to_csv(os.path.join(main_dir, "new_" + self.csv_name), index=False)
 
-            train_loss = []
-            avg_outliers = []
-            number_of_images = self.number_of_train_images
+                    if batch_id % 10 == 0:
+                        img1 = batch
+                        img2 = images_with_pert
 
-            progress_bar = tqdm(enumerate(self.train_loader), desc=f'Epoch {epoch}',
-                                total=min(len(self.train_loader), number_of_images),
-                                ncols=150)
-            self.model.train()
-            for i_batch, (images, labels, _) in progress_bar:
-                if i_batch >= number_of_images:
-                    break
+                        # img1 = img1.numpy() # TypeError: tensor or list of tensors expected, got <class 'numpy.ndarray'>
+                        save_image(self.denormalize(img1),
+                                   os.path.join(main_dir, "images", "{}_clean.png".format(batch_id)))
+                        save_image(self.denormalize(img2),
+                                   os.path.join(main_dir, "images", "{}_adv.png".format(batch_id)))
 
-                # temp = self.model(images)
-                # continue
-                adv_pert_cpu.requires_grad_(True)
-                if len(images.shape) > 4:
-                    images = images.squeeze(0)
+            torch.save(adv_pert_cpu, os.path.join(main_dir, "perturbation_torch.pt"))
+            save_image(torch.clamp(adv_pert_cpu, 0, 1), os.path.join(main_dir, "images", "perturbation.png"))
 
-                loss, cur_loss, outliers, adv_batch = self.forward_step(adv_pert_cpu, images, labels)
-
-
-                avg_outliers.append(outliers)
-                train_loss.append(cur_loss)
-
-                # optimizer.zero_grad()
-                self.model.zero_grad()
-                loss.backward()
-
-                # Collect the element-wise sign of the data gradient
-                sign_data_grad = self._compute_perturbation(adv_pert_cpu, _, _)
-                perturbed_patch = adv_pert_cpu.to(self.attack.device) - self.attack.eps_step * sign_data_grad
-                adv_pert_cpu = torch.clamp(perturbed_patch, -3, 3).detach()
-
-                adv_pert_cpu = self._projection(adv_pert_cpu)
-
-                adv_pert_cpu.data.clamp_(-3, 3)
-
-                progress_bar.set_postfix_str(
-                    "Batch Loss: {:.6} | Avg_Outliers: {} ".format(sum(train_loss) / (i_batch + 1),
-                                                                   round(sum(avg_outliers) / len(avg_outliers), 2)))
-
-                if self.save_changes and i_batch == 0:
-                    save_image(self.denormalize(
-                        self.apply_perturbation(images.clone().to(self.attack.device), adv_pert_cpu.clone())),
-                        os.path.join(main_dir, "images",
-                                     "train_{}_epoch_{}_outs_{}.png".format(i_batch, epoch, outliers)))
-
-            running_loss['train'].append(train_loss)
-
-        with open(os.path.join(self.cfg.current_dir, "loss_dict.pickle"), 'wb') as handle:
-            pickle.dump(running_loss, handle)
-
-        torch.save(adv_pert_cpu, os.path.join(main_dir, "perturbation_torch.pt"))
-
-        with torch.no_grad():
-            for batch_id, (batch, img_dir, _) in enumerate(self.test_loader):
-                if batch_id >= self.number_of_test_images: break  # self.cfg.test_success_size
-                batch = batch.to(self.attack.device)
-                adv_pert_gpu = adv_pert_cpu.to(self.attack.device)
-                images_with_pert = self.apply_perturbation(batch, adv_pert_gpu)
-                if len(images_with_pert.shape) > 4:
-                    images_with_pert = images_with_pert.squeeze(0)
-                if len(batch.shape) > 4:
-                    batch = batch.squeeze(0)
-                results = self.compute_success(batch, images_with_pert, batch_id, img_dir)
-                results_combine = pd.concat([results_combine, results], axis=0)
-                results_combine.to_csv(os.path.join(main_dir, self.csv_name), index=False)
-
-                if batch_id % 10 == 0:
-                    img1 = batch
-                    img2 = images_with_pert
-
-                    # img1 = img1.numpy() # TypeError: tensor or list of tensors expected, got <class 'numpy.ndarray'>
-                    save_image(self.denormalize(img1),
-                               os.path.join(main_dir, "images", "{}_clean.png".format(batch_id)))
-                    save_image(self.denormalize(img2), os.path.join(main_dir, "images", "{}_adv.png".format(batch_id)))
-
-        torch.save(adv_pert_cpu, os.path.join(main_dir, "perturbation_torch.pt"))
-        save_image(torch.clamp(adv_pert_cpu, 0, 1), os.path.join(main_dir, "images", "perturbation.png"))
-
-        results_combine.to_csv(os.path.join(main_dir, self.csv_name), index=False)
-        print("saved ", self.csv_name)
+            results_combine.to_csv(os.path.join(main_dir, "new_" + self.csv_name), index=False)
+            print("saved ", self.csv_name)
 
     def forward_step(self, adv_pert_cpu, images, targets):
         adv_pert_device = adv_pert_cpu.to(self.cfg['device'])
@@ -182,7 +152,7 @@ class UniversalAttack(Attack):
 
         adv_batch = images + adv_pert  # no need to multiply by step because it happens in the optimizer.step
 
-        adv_batch.data.clamp_(-3, 3)
+        adv_batch.data.clamp_(-1, 1)
         return adv_batch
 
     def _projection(self, values):
@@ -264,6 +234,7 @@ def parse_args():
     parser.add_argument('--TV_loss', type=float, default=0, help='Weight for Total Variation loss')
     parser.add_argument('--cls', type=str, default='n01495701',
                         help='class to attack')  # ["n01495701", "n01531178", "n01644900", "n01688243", "n06874185"]
+    parser.add_argument('--file_num', type=int, default=0, help='from where to start')
     print(parser.parse_args())
     return parser.parse_args()
 
@@ -280,6 +251,7 @@ def main():
                                     TV_loss]]}  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
     attack = UniversalAttack(cfg)
+    attack.start_num = args.file_num
     attack.generate()
 
 
@@ -308,5 +280,5 @@ def Class_main():
 
 if __name__ == '__main__':
     ##############################
-    main()
-    # Class_main()
+    # main()
+    Class_main()

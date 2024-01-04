@@ -19,13 +19,20 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))
 class BaseConfig:
     def __init__(self):
         self.root_path = ROOT
+        self.save_path = '/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/'
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'VIT'  # DeiT, VIT, Whisper, Owldetection , other
+        model_name = 'DeiT'  # DeiT, VIT,BEiT,swin_tiny,swin_base Whisper, Owldetection ,Detr, yolos,gpt2,blip,git, other
+        self.model_name = model_name
+        self.second_model_name = None  # DeiT, VIT, Whisper, Owldetection ,Detr, other
 
-        model_config = {'VIT': 0, 'DeiT': 0, 'Whisper': 1, 'Owldetection': 2, 'other': 3}
-        loss_param_config = {'VIT': [1, 50, 0.01], 'DeiT': [1, 50, 0.01], 'Whisper': [1, 0, 0],
-                             'Owldetection': [1, 0, 0], 'other': [1, 0, 0]}
+        model_config = {'VIT': 0, 'DeiT': 0,'BEiT_large':1,'BEiT_base':1,  'Whisper': 1, 'Owldetection': 2, 'Detr': 1, 'yolos': 1,"yolos_base":1, 'gpt2': 3,
+                        'blip': 3,'swin_tiny': 1,'swin_base':1,
+                        "git": 4, 'VIT_large': 0,'VIT_384': 0, 'DeiT_large': 0, "other": 4}  # 0p
+
+        loss_param_config ={'VIT': [1, 50, 0.01]} #the loss param config is from the main  #{'VIT': [1, 50, 0.01], 'DeiT': [1, 50, 0.01],'BEiT_large': [1, 50, 0.01], 'BEiT_base': [1, 50, 0.01],'Whisper': [1, 0, 0],
+                             #'Owldetection': [1, 0, 0], 'Detr': [1, 0, 0], 'yolos': [1, 0, 0], 'yolos_base': [1, 0, 0],'gpt2': [1, 0, 0],
+                             #'blip': [1, 0, 0], 'git': [1, 0, 0], 'VIT_large': [1, 0, 0],'VIT_384': [1, 0, 0], 'DeiT_large': [1, 0, 0]}
         self.model_config_num = model_config[model_name]
 
         print("Using model: ", model_name)
@@ -34,19 +41,20 @@ class BaseConfig:
         self.attack_name = 'PGD'
 
         self.loss_params = {
-            'weights': [loss_param_config[model_name]]}
+            'weights': [loss_param_config["VIT"]]}
         # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
+        epsilon = round(16 / 255, 3)  # 16/255,32/255
         self.attack_params = {
             'norm': "inf",  # "inf", 2, 1
-            'eps': 0.8,
-            'eps_step': 0.002,
-            'decay': None,
+            'eps': epsilon,
+            'eps_step': epsilon / 10,
+            'decay': 0.75,
             'max_iter': 2999,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device,
-            'clip_values': (-3, 3),
+            'clip_values': (-1, 1),
             "normalized_std": None,  # [0.485, 0.456, 0.406] for imagenet
         }
 
@@ -57,7 +65,7 @@ class BaseConfig:
         self.epochs = 100
         self.number_of_training_images = 250
         self.number_of_val_images = 50
-        self.number_of_test_images = 200
+        self.number_of_test_images = 1
         ##################################################################################
 
         self.max_iter = self.attack_params['max_iter']
@@ -96,7 +104,7 @@ class BaseConfig:
     def _set_model(self, model_name):
         self.model_name = model_name
         with open(ROOT / 'configs/model_config.yaml', 'r') as stream:
-            self.model_config = yaml.safe_load(stream)[self.model_name]
+            self.model_config = yaml.safe_load(stream)[model_name]
 
     def _set_losses(self, loss_func_params):
         self.loss_func_params = loss_func_params
@@ -110,7 +118,10 @@ class BaseConfig:
     def _update_current_dir(self):
         my_date = datetime.datetime.now()
         month_name = my_date.strftime("%B")
-        self.current_dir = os.path.join("experiments", month_name)
+        if self.save_path is not None:
+            self.current_dir = os.path.join(self.save_path, "experiments", month_name)
+        else:
+            self.current_dir = os.path.join("experiments", month_name)
         Path(self.current_dir).mkdir(parents=True, exist_ok=True)
 
     def _set_dataset(self, dataset_name, dataset_path):
@@ -124,8 +135,8 @@ class OneToOneAttackConfig(BaseConfig):
         super(OneToOneAttackConfig, self).__init__()
         dataset_path = os.path.join(self.root_path, 'demo')
 
-        attack_image_name = 'Cheder.jpeg'  # egyptian_cat.jpg
-        self.attack_img_diff_path = os.path.join(dataset_path, attack_image_name)
+        attack_image_name = 'My_dog2.jpeg'  # egyptian_cat.jpg
+        self.attack_img_diff_path = "/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use/images/train/n01514668/images/val/n01514668_9964.JPEG"
         target_image_name = 'corgi.jpg'
         self.target_img_orig_path = os.path.join(dataset_path, target_image_name)
         # self.loss_params.update({'images_save_path': os.path.join(self.current_dir, 'outputs')})
@@ -135,6 +146,8 @@ class ManyToManyAttackConfig(BaseConfig):
     def __init__(self):
         super(ManyToManyAttackConfig, self).__init__()
         dataset_name = 'imagenet'
+        if self.model_name == 'Owldetection':
+            dataset_name = 'coco'
         self._set_dataset(dataset_name, 'configs/dataset_config.yaml')
 
 

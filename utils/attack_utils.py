@@ -1,7 +1,9 @@
 import torch
 
 
-def count_outliers(outliers_arr, threshold):
+def count_outliers(outliers_arr, threshold=6):
+    if len(outliers_arr) == 0:
+        return 0,0
     batch_size = outliers_arr[0].shape[0]
     num_columns_with_outliers = 0
     outs_ration = []

@@ -17,10 +17,15 @@ class ImageNetDataset(Dataset):
         self.n_classes = 1000
         self.feature_extractor = feature_extractor
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.Imglist = os.listdir(os.path.join(root, "images", split))
-        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
         self.LabeList = None
+        self.Imglist = os.listdir(os.path.join(root, "images", split))
+        if "coco" in root:
+            self.LabeList = sorted([os.path.join(root, "labels", f"val_names",s) for s in os.listdir(os.path.join(root, "labels", f"val_names"))])
+            self.Imglist = sorted(self.Imglist)
+        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+
+
 
     def __len__(self):
         return len(self.Imglist)
@@ -54,14 +59,17 @@ class ImageNetDataset(Dataset):
             ).input_features
             return img_extractor, "from dataset", ids
 
-        try:
-            is_owl = "Owl" in self.feature_extractor.feature_extractor_class
-        except AttributeError:
-            is_owl = False
+        # try:
+        #     is_owl = "Owl" in self.feature_extractor.image_processor_class or "Owl" in self.feature_extractor.feature_extractor_class
+        # except AttributeError:
+        is_owl = False
 
         try:
             if is_owl:
-                texts = [["cat", "dog", "animal", "water", ], ["car", "vehicle", "automobile"], ["person"]]
+                with open(self.LabeList[index], 'r') as file:
+                    text = file.readlines()
+                    text = [item.strip() for item in text]
+                texts = [text]
                 feature_output = self.feature_extractor(text=texts, images=img, return_tensors="pt")
                 img_extractor = feature_output["pixel_values"]
                 ids = feature_output["input_ids"]
@@ -81,9 +89,12 @@ def get_dataset(dataset_name):
     # load dataset
     if dataset_name == 'imagenet':
         return ImageNetDataset
+    if dataset_name == "coco":
+        return ImageNetDataset
 
 
-def get_loaders(loader_params, dataset_config, splits_to_load, model_name, **kwargs):
+
+def get_loaders(loader_params, dataset_config, splits_to_load, model_name):
     dataset_name = dataset_config['dataset_name']
     print('Loading {} dataset...'.format(dataset_name))
     train_loader, val_loader, test_loader = None, None, None

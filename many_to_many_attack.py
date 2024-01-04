@@ -19,10 +19,9 @@ class ManyToManyAttack(Attack):
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
 
-        dataset_params = {'random_pair': True, 'load_reconstruct': True, 'load_lensed': True}
         _, self.test_loader, _ = get_loaders(self.cfg.loader_params, self.cfg.dataset_config, ['validation', 'test'],
-                                             model_name=self.cfg.model_name,
-                                             **dataset_params)
+                                             model_name=self.cfg.model_name
+                                             )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.attack_parmas = dict(list(cfg.attack_params.items())[:-1])
         self.file_name = self.file_name + "_iter_" + str(self.attack_parmas['max_iter']) + ".csv"
@@ -31,27 +30,51 @@ class ManyToManyAttack(Attack):
         print("Starting many-to-many attack...")
         results_combine = pd.DataFrame()
 
+        #  start from the last stop
+        root = "/sise/home/barasa/8_bits_attack/"
+        num_rows = None
+        if os.path.exists(root + self.file_name):
+            try:
+                results_combine = pd.read_csv(root + self.file_name)
+                num_rows = len(results_combine)
+            except:
+                pass
         for batch_id, data in enumerate(self.test_loader):
 
-            if batch_id > max_batch or (batch_id % 1 == 0 and batch_id > 0):
+            if num_rows and batch_id < num_rows:
+                continue
+            if batch_id > max_batch:
+                break
+
+            if (batch_id > max_batch or (batch_id % 1 == 0 and batch_id > 0)) and batch_id != num_rows:
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
-                save_image(self.denormalize(adv_x,self.model_mean,self.model_std), os.path.join(self.attack_dir, "adv.jpg"))
-                torch.save(adv_x, os.path.join(self.attack_dir, "adv.pt"))
-                save_image(self.denormalize(attack_images,self.model_mean,self.model_std), os.path.join(self.attack_dir, "clean.jpg"))
-                torch.save(attack_images, os.path.join(self.attack_dir, "clean.pt"))
-                torch.save(adv_x[0] - attack_images[0], os.path.join(self.attack_dir, "perturbation_torch.pt"))
+                if self.cfg.model_name in ["VIT", "DeiT", "Owldetection", "Detr", "yolos", "git","VIT_large",'DeiT_large','yolos_base','VIT_384','BEiT_base','BEiT_large','swin_base','swin_tiny']:
+                    save_image(self.denormalize(adv_x, self.model_mean, self.model_std),
+                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.jpg"))
+                    torch.save(adv_x, os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.pt"))
+                    save_image(self.denormalize(attack_images, self.model_mean, self.model_std),
+                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "clean.jpg"))
+                    torch.save(attack_images, os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "clean.pt"))
+                    torch.save(adv_x[0] - attack_images[0],
+                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "perturbation_torch.pt"))
+                else:  # without normalization
+                    save_image(adv_x, os.path.join(self.attack_dir, str(batch_id) + "_" + "adv.jpg"))
+                    torch.save(adv_x, os.path.join(self.attack_dir, str(batch_id) + "_" + "adv.pt"))
+                    save_image(attack_images, os.path.join(self.attack_dir, str(batch_id) + "_" + "clean.jpg"))
+                    torch.save(attack_images, os.path.join(self.attack_dir, str(batch_id) + "_" + "clean.pt"))
+                    torch.save(adv_x[0] - attack_images[0],
+                               os.path.join(self.attack_dir, str(batch_id) + "_" + "perturbation_torch.pt"))
 
                 # save attack parameters
                 with open(os.path.join(self.attack_dir, "attack_parameters.yml"), 'w') as outfile:
                     yaml.dump(self.attack_parmas, outfile, default_flow_style=False)
                 print(f"saved{self.file_name}")
-            if batch_id > max_batch:
-                break
 
             # attack
             attack_images = data[0].squeeze(1).to(self.device)
+            img_dir = data[1][0]  # img_dir.split("/")[-1] + "_" +
             adv_x = self.attack.generate(attack_images, attack_images,
                                          {'cur': batch_id + 1, 'total': len(self.test_loader)}, data[-1])
 
@@ -73,6 +96,7 @@ class ManyToManyAttack(Attack):
         # B, 3, H, W
         return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
     parser.add_argument('--accuracy_loss', type=float, default=50, help='Weight for accuracy loss')
@@ -90,11 +114,11 @@ def main():
     TV_loss = args.TV_loss
 
     cfg.loss_params = {'weights': [[1, accuracy_loss,
-                                   TV_loss]]}  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
+                                    TV_loss]]}  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
     attack = ManyToManyAttack(cfg)
-    attack.generate(1000)  # generate k batches
 
+    attack.generate(1000)  # generate k batches
 
 
 # def main_iter_2():

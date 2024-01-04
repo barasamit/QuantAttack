@@ -36,6 +36,7 @@ def print_data_frame(y,blocks):
 #     return print_data_frame(y)
 def print_outliers(matmul_lists, outliers_arr,blocks):
     y = []
+
     for i, t in enumerate(matmul_lists):
 
         try:

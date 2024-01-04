@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import torch
-
 from utils.attack_utils import count_outliers
 from utils.general import save_graph, print_outliers
 from utils.init_collect_arrays import input_arr, outliers_arr, outliers_arr_local, pointers
@@ -9,31 +8,30 @@ from utils.losses_utils import clear_lists, stack_tensors_with_same_shape
 import torch.nn as nn
 from torchvision.utils import save_image
 from torchmetrics.image import TotalVariation
+import pandas as pd
+import random
 
-
-class ImageData:
-    def __init__(self):
-        self._pixel_values = None
-
-    def pixel_values(self):
-        return self._pixel_values
+random.seed(42)
+pd.set_option('display.width', 400)
+pd.set_option('display.max_columns', 10)
 
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn, cfg, images_save_path=None, mask=None,
-                 weights=None,
+    def __init__(self, model, loss_fns, convert_fn, cfg, second_model, images_save_path=None, mask=None,
+                 weights=None, iteration=0,
                  **kwargs) -> None:
         super().__init__()
         self.cfg = cfg
         self.model = model
+        self.second_model = second_model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fns = loss_fns
         self.convert_fn = convert_fn
         self.images_save_path = images_save_path
         self.mask = mask
         self.tv = TotalVariation().to(self.device)
-        self.iteration = 0
+        self.iteration = iteration
         self.max_iter = cfg.attack_params["max_iter"]
         self.attack_type = cfg.attack_type
         if self.images_save_path is not None:
@@ -58,7 +56,11 @@ class Loss:
             # attack specific layers
             if len(tensor.shape) < 3: continue
             tensor = tensor.abs()
-            t_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
+            try:
+                t_max = tensor.topk(self.cfg.num_topk_values, dim=2)[0]
+            except:
+                continue
+
             mask_lower = t_max > bottom_threshold
             mask_upper = t_max < threshold
             # Combine the two masks using the logical AND operator &
@@ -77,7 +79,7 @@ class Loss:
 
         return selected_values_list, targets_list
 
-    def denormalize(self,x):
+    def denormalize(self, x):
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
         # 3, H, W, B
@@ -89,7 +91,6 @@ class Loss:
 
     def loss_gradient(self, x, y, ids=None, loss_type="many_to_many"):
 
-
         input_arr.clear()
         # save to image
         if loss_type == "universal":
@@ -98,44 +99,56 @@ class Loss:
             x_grad = x.clone().detach().requires_grad_(True)
 
         # del x  # delete the original tensor to free up memory
-
+        second = False
         if self.cfg.model_config_num == 0:
+
             pred = self.model(x_grad)
+
+            # for combine models
+            # if random.random() < 0.5:
+            #     pred = self.model(x_grad)
+            #     second = False
+            # else:
+            #     pred = self.second_model(x_grad)
+            #     second = True
         elif self.cfg.model_config_num == 1:
             pred = self.model(x_grad.half())  # for wisper model
         elif self.cfg.model_config_num == 2:
             pred = self.model(input_ids=ids[0], pixel_values=x_grad)  # for Owldetection model
+        elif self.cfg.model_config_num == 3:  # for image captioning model
+            gen_kwargs = {"max_length": 16, "num_beams": 4}
+            pred = self.model.generate(x_grad, **gen_kwargs)
+        elif self.cfg.model_config_num == 4:  # for image captioning model
+            # pred = self.model.generate(pixel_values=x_grad, max_length=50)
+            pred = self.model(input_ids = torch.randint(0, 100, (10,10)),pixel_values=x_grad)
+
         else:
             pred = self.model(x_grad)
 
-        # matmul_lists = filter_items_by_pointer(input_arr.copy(), pointers.copy())
-
         matmul_lists = input_arr.copy()
+
         self.iteration += 1
 
         # Get the input and target tensors
-        inputs, targets = self.get_input_targeted(matmul_lists)
 
+        inputs, targets = self.get_input_targeted(matmul_lists)
         # Count the number of outliers
         # total_outliers = sum([len(l) for l in outliers_arr])
-        total_outliers,outs_ratio = count_outliers(outliers_arr_local,
-                                        threshold=self.cfg.model_threshold)  # compare with total_outliers
+        total_outliers, outs_ratio = count_outliers(outliers_arr_local,
+                                                    threshold=self.cfg.model_threshold)  # compare with total_outliers
 
         if self.iteration % 200 == 0 or self.iteration == 0:
             if hasattr(self.model.config, 'num_attention_heads'):
-                blocks = self.model.config.num_attention_heads
+                blocks = self.model.config.num_hidden_layers
             else:
                 blocks = self.model.config.text_config.num_hidden_layers
 
             outliers_df = print_outliers(matmul_lists, outs_ratio, blocks)
+            # print()
+            # print(self.second_model.base_model_prefix if second else self.model.base_model_prefix)
             print()
             print(outliers_df)
-
-
-        # if self.iteration % 100 == 0:
-        #     save_image(self.denormalize(x.clone()), f"im_change_2/outliers {total_outliers}.png")
-
-
+        #
 
         # Calculate the loss
         loss = torch.zeros(1, device="cuda")
@@ -149,12 +162,29 @@ class Loss:
 
             # add loss for accuracy
             if loss_weight[1] != 0:
-                true_label = self.model(y).logits
-                loss += loss_weight[1] * loss_fn(pred.logits, true_label).squeeze().mean()  # add accuracy loss
+                if second:
+                    true_label = self.second_model(y).logits
+                    y_tag = pred.logits
+                if self.cfg.model_config_num == 1:
+                    # true_label = self.model(input_ids=ids[1], pixel_values=y.half()).pred_boxes
+                    try:
+                        true_label = self.model(pixel_values=y.half()).pred_boxes
+                        y_tag = pred.pred_boxes
+                    except:
+                        true_label = self.model(y.half())
+                        y_tag =  pred.logits
+                        true_label = true_label.logits
+                elif self.cfg.model_config_num == 2:
+                    true_label = self.model(input_ids=ids[0], pixel_values=y).pred_boxes
+                    y_tag = pred.pred_boxes
+                else:
+                    true_label = self.model(y).logits
+                    y_tag = pred.logits
 
+                loss += loss_weight[1] * loss_fn(y_tag, true_label).squeeze().mean()  # add accuracy loss
+
+            # add loss for total variation
             if loss_weight[2] != 0:
-                # add loss for total variation
-
                 c = self.tv(x_grad)
                 loss += loss_weight[2] * c
 

@@ -3,9 +3,9 @@ imagenet:
 #  for universal attack and single attack '/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use'
   root_path: '/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use'
 
-
-# for class universal attack - choose from the following: n01495701,n01531178, n01644900, n01688243, n06874185
-#  root_path: "/dt/shabtaia/dt-fujitsu/datasets/others/imagnet/ILSVRC/Data/DET/amit_use/images/train/n01495701/"
+coco:
+  dataset_name: 'coco'
+  root_path: '/dt/shabtaia/dt-fujitsu/datasets/image_captioning/coco2017/'
 
 
 
