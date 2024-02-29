@@ -22,7 +22,7 @@ class BaseConfig:
         self.save_path = '/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/'
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'DeiT'  # DeiT, VIT,BEiT,swin_tiny,swin_base Whisper, Owldetection ,Detr, yolos,gpt2,blip,git, other
+        model_name = 'VIT'  # DeiT, VIT,BEiT,swin_tiny,swin_base Whisper, Owldetection ,Detr, yolos,gpt2,blip,git, other
         self.model_name = model_name
         self.second_model_name = None  # DeiT, VIT, Whisper, Owldetection ,Detr, other
 
@@ -44,17 +44,29 @@ class BaseConfig:
             'weights': [loss_param_config["VIT"]]}
         # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
-        epsilon = round(16 / 255, 3)  # 16/255,32/255
+        # Mask: implement only for UniversalAttack
+        self.mask_option = None # None,"left_upper64", 'left_upper16', 'left_upper32',  'one_pixel', two_pixel', four_pixel'
+
+        epsilon = 16/255 # 16/255,32/255 12/255
+        eps_step = 0.002
+
+        if self.mask_option is not None:
+            epsilon = 10000001
+            eps_step = eps_step * 10
+            self.image_size, self.image_size = 224, 224
+
+
+        clip_values = (-1,1) if model_name in ["VIT", "DeiT"] else (-3, 3)
         self.attack_params = {
             'norm': "inf",  # "inf", 2, 1
             'eps': epsilon,
-            'eps_step': epsilon / 10,
-            'decay': 0.75,
-            'max_iter': 2999,
+            'eps_step': eps_step,
+            'decay': None,
+            'max_iter': 10,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device,
-            'clip_values': (-1, 1),
+            'clip_values': clip_values,
             "normalized_std": None,  # [0.485, 0.456, 0.406] for imagenet
         }
 
@@ -62,10 +74,10 @@ class BaseConfig:
         # Universal attack
         self.initial_patch = "zeros"  # "random" ,"zero", "ones"
         self.image_size = 224
-        self.epochs = 100
-        self.number_of_training_images = 250
+        self.epochs = 1000
+        self.number_of_training_images = 200
         self.number_of_val_images = 50
-        self.number_of_test_images = 1
+        self.number_of_test_images = 10
         ##################################################################################
 
         self.max_iter = self.attack_params['max_iter']
@@ -92,6 +104,8 @@ class BaseConfig:
 
         self._set_model(model_name)
         self._set_losses(self.loss_func_params)
+        self.mask = self._set_mask()
+
 
         with open(ROOT / 'configs/attack_config.yaml', 'r') as stream:
             self.attack_config = yaml.safe_load(stream)[self.attack_name]
@@ -128,6 +142,65 @@ class BaseConfig:
         with open(ROOT / dataset_path, 'r') as stream:
             self.dataset_config = yaml.safe_load(stream)[dataset_name]
         self.dataset_config['dataset_name'] = dataset_name
+
+    def _set_mask(self):
+        if self.mask_option is None:
+            self.patch_size = None
+            mask = torch.ones((1, 3, self.image_size, self.image_size), device=self.device)
+
+        elif 'left_upper' in self.mask_option:
+            if self.mask_option == 'left_upper64':
+                self.patch_size = 64
+            if self.mask_option == 'left_upper54':
+                self.patch_size = 54
+            if self.mask_option == 'left_upper32':
+                self.patch_size = 32
+            elif self.mask_option == 'left_upper16':
+                self.patch_size = 16
+            mask_square_location = (0, 0)
+            # Define mask
+            mask = torch.zeros((1, 3, self.image_size, self.image_size), device=self.device)
+
+            mask[:, :, mask_square_location[0]:mask_square_location[0] + self.patch_size,
+            mask_square_location[1]:mask_square_location[1] + self.patch_size] = 1
+            # 1: in square, 0: out square
+
+        elif self.mask_option == 'one_pixel':
+            self.patch_size = 16
+            # Create a torch tensor of size (1, 3, 224, 224)
+            mask = torch.zeros((1, 3, self.image_size, self.image_size), device=self.device)
+
+            # Calculate the center position of each square
+            center_positions_x = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+            center_positions_y = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+
+            # Iterate over each square and set the middle pixel to 1
+            for x in center_positions_x:
+                for y in center_positions_y:
+                    mask[:, :, int(x), int(y)] = 1
+
+        elif self.mask_option == 'two_pixels':
+            self.patch_size = 16
+            mask = torch.zeros((1, 3, self.image_size, self.image_size), device=self.device)
+            center_positions_x = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+            center_positions_y = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+            for x in center_positions_x:
+                for y in center_positions_y:
+                    mask[:, :, int(x):int(x) + 2, int(y):int(y) + 2] = 1
+
+        elif self.mask_option == 'four_pixels':
+            self.patch_size = 16
+            mask = torch.zeros((1, 3, self.image_size, self.image_size), device=self.device)
+            center_positions_x = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+            center_positions_y = torch.arange(self.patch_size / 2, self.image_size, self.patch_size)
+            for x in center_positions_x:
+                for y in center_positions_y:
+                    mask[:, :, int(x):int(x) + 4, int(y):int(y) + 4] = 1
+        else:
+            print('mask option not valid')
+            mask = torch.zeros((1, 3, self.image_size, self.image_size), device=self.device)
+
+        return mask
 
 
 class OneToOneAttackConfig(BaseConfig):

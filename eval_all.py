@@ -24,33 +24,23 @@ def denormalize(x, mean=None, std=None):
     return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
 
 
-# path_dict = {1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/TV/TV_0.1/",
-#              2: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/TV/TV_0.005/",
-#              3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/TV/TV_0.05/",
-#              4: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/accuracy/acu_500/",
-#              5: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/accuracy/acu_100/",
-#              6: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/accuracy/acu_25/",
-#              7: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/target_mse/target_1000000/",
-#              8: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/target_mse/target_50/",
-#              9: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/target_mse/target_20/",
-#              10: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/target_mse/target_7/",
-#              11: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/target_mse/target_100/",
-#              12: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/topk/top_all/",
-#              13: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/topk/top_10/",
-#              14: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/topk/top_1/"}
+path_dict = {1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/vit/inf_0.06274509803921569_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
+             2: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/vit/inf_0.06274509803921569_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
+             3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 0.0, 0.0]]_70/",
+             4: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 25.0, 0.0]]_70/",
+             5: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 100.0, 0.0]]_70/",
+             6: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 75.0, 0.0]]_70/",
+             7: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 250.0, 0.0]]_70/",
+             8: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.047058823529411764_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
+             9: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.12549019607843137_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
+             10: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.03137254901960784_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
+             11: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/baselines/Normal_PGD/normal_pgd_vit/",
+             }
 
-# path_dict = {1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.1/",
-#              2: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.4/",
-#              3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.6/",
-#              4: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_1/"}
 
-path_dict = {1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.1_DeiT/",
-             2: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.4_DeiT/",
-             3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_0.6_DeiT/",
-             4: "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Ablation_study/epsilon/eps_1_DeiT/"}
-#
+
 parser = argparse.ArgumentParser(description='Process some paths.')
-parser.add_argument('num',default=1,type=int, help='Number Path to the data directory')
+parser.add_argument('--num',default=1,type=int, help='Number Path to the data directory')
 args = parser.parse_args()
 
 
@@ -60,7 +50,7 @@ cfg = config_dict[config_type]()
 attack = Attack(cfg)
 model_name = cfg.model_name
 
-csv_name = f"eval_all_new_3.csv"
+csv_name = f"eval_all.csv"
 path = path_dict[args.num]
 main_dir = path
 if os.path.exists(os.path.join(main_dir, csv_name)):
@@ -68,8 +58,8 @@ if os.path.exists(os.path.join(main_dir, csv_name)):
     # results_combine = results_combine.drop(results_combine.index[-1])
 
 old_columns = ['batch_id', "img_dir", "clean_power_usage", "clean_CUDA_time", "clean_CUDA_mem", "clean_outliers"]
-# columns = old_columns + ["random", "adv"]
-columns = old_columns + ["adv"]
+columns = old_columns + ["random", "adv"]
+# columns = old_columns + ["adv"]
 universal_patch = None
 # if model_name in ["VIT", "DeiT"]:
 #     universal_patch = torch.load(
@@ -109,7 +99,7 @@ for i, file in enumerate(tqdm(clean_files)):
         res = attack.compute_success2(file_clean, [random_image, universal_image, file_adv], i, "")
 
     else:
-        res = attack.compute_success2(file_clean, [file_adv], i, "", ids=ids) #[random_image, file_adv]
+        res = attack.compute_success2(file_clean, [random_image,file_adv], i, "", ids=ids) #[random_image, file_adv]
     res.columns = columns
     results_combine = pd.concat([results_combine, res], axis=0)
     # replace columns names

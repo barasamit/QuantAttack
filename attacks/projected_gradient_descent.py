@@ -47,6 +47,11 @@ class ProjectedGradientDescent:
         #                                                    step_size_up=1200, mode="triangular2")
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=1000, T_mult=1,
                                                                               eta_min=1e-5, last_epoch=-1)
+
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100, eta_min=1e-4)
+        # self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=0.0001, max_lr=0.002, step_size_up=500,
+        #                                               mode="exp_range", gamma=0.85)
+
         # self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=50, verbose=True)
 
     def generate(self, inputs, targets, batch_info, ids=None):
@@ -67,8 +72,6 @@ class ProjectedGradientDescent:
         eps_step_list = []
         out_list = []
 
-        num_iter_without_outlier_increase = 0  # Counter for the number of iterations without an increase in outliers
-        prev_outliers_num = self.outliers_num  # Previous outlier count
 
         for i, _ in enumerate(progress_bar):
             adv_x = self._compute(adv_x, inputs, targets, momentum)

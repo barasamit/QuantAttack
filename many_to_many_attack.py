@@ -3,12 +3,11 @@ import math
 import os
 
 import yaml
-
+import torch
 from configs.attacks_config import config_dict
 from utils.data_utils import get_loaders
 from attack import Attack
 import pandas as pd
-import torch
 from itertools import product
 from torchvision.utils import save_image
 from tqdm import tqdm
@@ -26,31 +25,47 @@ class ManyToManyAttack(Attack):
         self.attack_parmas = dict(list(cfg.attack_params.items())[:-1])
         self.file_name = self.file_name + "_iter_" + str(self.attack_parmas['max_iter']) + ".csv"
 
-    def generate(self, max_batch=math.inf):
+    def generate(self, max_batch=math.inf,start_from=0):
         print("Starting many-to-many attack...")
         results_combine = pd.DataFrame()
 
         #  start from the last stop
-        root = "/sise/home/barasa/8_bits_attack/"
+        root = "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/January/"
         num_rows = None
-        if os.path.exists(root + self.file_name):
+        if os.path.exists(self.file_name):
             try:
                 results_combine = pd.read_csv(root + self.file_name)
                 num_rows = len(results_combine)
             except:
                 pass
+        num_rows = start_from
         for batch_id, data in enumerate(self.test_loader):
 
+            # if batch_id == 0:
+            #     continue
             if num_rows and batch_id < num_rows:
                 continue
             if batch_id > max_batch:
                 break
 
+
+            # attack
+
+            attack_images = data[0].squeeze(1).to(self.device)
+            img_dir = data[1][0]  # img_dir.split("/")[-1] + "_" +
+            adv_x = self.attack.generate(attack_images, attack_images,
+                                         {'cur': batch_id + 1, 'total': len(self.test_loader)}, data[-1])
+
+            res = self.compute_success(attack_images, adv_x, batch_id, data[1], None, data[-1])
+            results_combine = pd.concat([results_combine, res], axis=0)  # combine results
+
             if (batch_id > max_batch or (batch_id % 1 == 0 and batch_id > 0)) and batch_id != num_rows:
                 # save results
                 results_combine.to_csv(self.file_name, index=False)
                 # save adv images
-                if self.cfg.model_name in ["VIT", "DeiT", "Owldetection", "Detr", "yolos", "git","VIT_large",'DeiT_large','yolos_base','VIT_384','BEiT_base','BEiT_large','swin_base','swin_tiny']:
+                if self.cfg.model_name in ["VIT", "DeiT", "Owldetection", "Detr", "yolos", "git", "VIT_large",
+                                           'DeiT_large', 'yolos_base', 'VIT_384', 'BEiT_base', 'BEiT_large',
+                                           'swin_base', 'swin_tiny']:
                     save_image(self.denormalize(adv_x, self.model_mean, self.model_std),
                                os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.jpg"))
                     torch.save(adv_x, os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.pt"))
@@ -72,15 +87,6 @@ class ManyToManyAttack(Attack):
                     yaml.dump(self.attack_parmas, outfile, default_flow_style=False)
                 print(f"saved{self.file_name}")
 
-            # attack
-            attack_images = data[0].squeeze(1).to(self.device)
-            img_dir = data[1][0]  # img_dir.split("/")[-1] + "_" +
-            adv_x = self.attack.generate(attack_images, attack_images,
-                                         {'cur': batch_id + 1, 'total': len(self.test_loader)}, data[-1])
-
-            res = self.compute_success(attack_images, adv_x, batch_id, data[1], None, data[-1])
-            results_combine = pd.concat([results_combine, res], axis=0)  # combine results
-
             if batch_id > 500:
                 break
 
@@ -99,8 +105,9 @@ class ManyToManyAttack(Attack):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
-    parser.add_argument('--accuracy_loss', type=float, default=50, help='Weight for accuracy loss')
-    parser.add_argument('--TV_loss', type=float, default=0.01, help='Weight for Total Variation loss')
+    parser.add_argument('--accuracy_loss', type=float, default=0, help='Weight for accuracy loss')
+    parser.add_argument('--Mean_loss', type=float, default=0, help='Weight for Total Variation loss')
+    parser.add_argument('--start', type=int, default=0, help='where to start from')
     return parser.parse_args()
 
 
@@ -111,14 +118,17 @@ def main():
     cfg = config_dict[config_type]()
 
     accuracy_loss = args.accuracy_loss
-    TV_loss = args.TV_loss
+    Mean_loss = args.Mean_loss
+
+    start_from = args.start
+
 
     cfg.loss_params = {'weights': [[1, accuracy_loss,
-                                    TV_loss]]}  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
+                                    Mean_loss]]}  # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
     attack = ManyToManyAttack(cfg)
 
-    attack.generate(1000)  # generate k batches
+    attack.generate(1000,start_from)  # generate k batches
 
 
 # def main_iter_2():
@@ -199,5 +209,7 @@ def main():
 #         print("#############################################")
 #
 
+
 if __name__ == '__main__':
+
     main()

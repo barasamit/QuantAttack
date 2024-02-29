@@ -23,7 +23,7 @@ class ImageNetDataset(Dataset):
         if "coco" in root:
             self.LabeList = sorted([os.path.join(root, "labels", f"val_names",s) for s in os.listdir(os.path.join(root, "labels", f"val_names"))])
             self.Imglist = sorted(self.Imglist)
-        # self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
+        self.ds = load_dataset("google/fleurs", "all", split="validation", streaming=True)
 
 
 
@@ -37,8 +37,6 @@ class ImageNetDataset(Dataset):
             return os.path.join(self.root, "images", self.split + "/") + self.Imglist[0]
 
     def __getitem__(self, index):
-
-
 
 
         img_dir = self.get_image_dir(index)
@@ -58,11 +56,12 @@ class ImageNetDataset(Dataset):
                 return_tensors="pt"
             ).input_features
             return img_extractor, "from dataset", ids
-
-        # try:
-        #     is_owl = "Owl" in self.feature_extractor.image_processor_class or "Owl" in self.feature_extractor.feature_extractor_class
-        # except AttributeError:
         is_owl = False
+        try:
+            is_owl = "Owl" in self.feature_extractor.image_processor_class or "Owl" in self.feature_extractor.feature_extractor_class
+        except:
+            pass
+
 
         try:
             if is_owl:

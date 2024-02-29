@@ -34,7 +34,6 @@ class Attack:
                 module.register_forward_hook(hook_fn)
         # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
 
-
         for name, module in self.model.named_modules():
             module.register_forward_hook(hook_fn)
 
@@ -84,6 +83,9 @@ class Attack:
         b = [str(attack_params['norm']), str(attack_params['eps']), str(attack_params['eps_step']),
              str(attack_params['targeted']), str(attack_params['max_iter']), str(k), str(batch_size),
              str(self.cfg['model_name']), str(self.weights), str(target)]
+        if self.cfg.mask_option is not None:
+            b = f"Universal_{self.cfg.mask_option}_" + '_'.join(b)
+            return "delete_me"
 
         return '_'.join(b)
 
@@ -136,6 +138,7 @@ class Attack:
         return energy_delta
 
     def calc_GPU_CPU_time_memory(self, x):
+
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
             with record_function("model_inference"):
                 outliers_arr_local.clear()
@@ -144,7 +147,8 @@ class Attack:
                     # self.model(input_ids = torch.randint(0, 100, (10,10)),pixel_values=x)
                 except:
                     # self.model(x).logits.sum().item()
-                    if self.ids is None or self.ids == [] or self.ids == torch.tensor([0]):
+                    # if (self.ids is None) or (self.ids == []) or (self.ids == torch.tensor([0])):
+                    if (self.ids is None) or (self.ids == []) :
 
                         with torch.no_grad():
                             self.model(x.half())
@@ -153,18 +157,18 @@ class Attack:
                             try:
                                 self.model(input_ids=self.ids[0], pixel_values=x)
                             except:
-                                self.model(input_ids = torch.randint(0, 100, (10,10)),pixel_values=x)
+                                self.model(input_ids=torch.randint(0, 100, (10, 10)), pixel_values=x)
 
                 self.outliers = count_outliers(outliers_arr_local,
                                                threshold=self.cfg.model_threshold)
 
         # ==== or ====
+        # print(prof.key_averages().table(sort_by="self_cuda_memory_usage",row_limit = 50))
         cpu_time = prof.profiler.total_average().self_cpu_time_total / 1000.0  # in mil-second
         cuda_time = prof.profiler.total_average().self_cuda_time_total / 1000.0  # in mil-second
         cpu_mem = prof.profiler.total_average().cpu_memory_usage / (2 ** 20)  # in Mbits
         cuda_mem = prof.profiler.total_average().cuda_memory_usage / (2 ** 20)  # in Mbits
         outliers_arr_local.clear()
-
 
         return cpu_time, cuda_time, cpu_mem, cuda_mem
 
@@ -182,6 +186,7 @@ class Attack:
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
 
         self.ids = ids
+
         def gpu_warm_up():
             for _ in range(2):
                 pynvml.nvmlInit()
@@ -192,6 +197,7 @@ class Attack:
                 _ = self.calc_GPU_CPU_time_memory(x_clean)
                 after_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
             torch.cuda.synchronize()
+
         gpu_warm_up()
         outliers_arr_local.clear()
 
@@ -214,10 +220,11 @@ class Attack:
         num_measurements = 1  # Number of times to repeat the calculation
 
         for _ in range(num_measurements):
+            # break
 
             # Measure adversarial example
             try:
-
+                self.flag = True
                 before_energy_adv = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
                 cpu_time_adv, cuda_time_adv, cpu_mem_adv, cuda_mem_adv = self.calc_GPU_CPU_time_memory(x_adv)
                 after_energy_adv = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
@@ -275,6 +282,7 @@ class Attack:
 
         results = {'batch_id': batch_id, 'clean': dict(), 'adv': [], "img_dir": img_dir}
         self.ids = ids
+
         # Function to calculate the average of a list of values
         def average_list(lst):
             if len(lst) == 0:
@@ -291,6 +299,7 @@ class Attack:
                 _ = self.calc_GPU_CPU_time_memory(x_clean)
                 after_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
             torch.cuda.synchronize()
+
         gpu_warm_up()
 
         outliers_arr_local.clear()
@@ -318,7 +327,6 @@ class Attack:
 
         for _ in range(1):
             # Process clean example
-
 
             # Process adversarial examples
             for i, x_adv in enumerate(x_adv_list):
@@ -388,4 +396,3 @@ class Attack:
         torch.cuda.empty_cache()
 
         return self.dict_to_df(results)
-

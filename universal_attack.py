@@ -3,6 +3,7 @@ import os
 import pickle
 from itertools import product
 from pathlib import Path
+import torch.optim as optim
 
 import pandas as pd
 import torch
@@ -30,6 +31,7 @@ class UniversalAttack(Attack):
                                                                            ['validation', 'test'],
                                                                            model_name=self.cfg.model_name)
         self.train_loader = self.val_loader
+        self.cfg = cfg
 
         self.number_of_train_images = cfg.number_of_training_images
         self.number_of_val_images = cfg.number_of_val_images
@@ -41,13 +43,17 @@ class UniversalAttack(Attack):
         self.model_name = self.cfg.model_name
         self.lr = self.attack.eps_step
         self.cls = None
-        self.mask[..., 16:, 16:] = 0  # comment if you want full image pixels
+        self.mask = cfg.mask_option
+        self.optimizer = optim.SGD([torch.zeros(1)], lr=self.lr.item(),
+                                   momentum=0.9)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=1000, T_mult=1,
+                                                                              eta_min=1e-5, last_epoch=-1)
 
     def generate(self):
         if self.cls is None:
-            self.name = f"lr_{self.lr.item()}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_name{self.model_name}.csv"
+            name = f"Universal_{self.mask}_lr_{round(self.lr.item(),5)}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_name{self.model_name}_images_{self.cfg.number_of_training_images}.csv"
         else:
-            self.name = f"lr_{self.lr.item()}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_cls_{self.cls}_name{self.model_name}.csv"
+            name = f"Universal_{self.mask}_lr_{round(self.lr.item(),5)}_epsilon_{self.attack.eps.item()}_norm_{self.attack.norm}_weights{self.weights}_cls_{self.cls}_name{self.model_name}.csv"
         print("Starting Universal attack...")
         print("###############################################")
         print("parameters:")
@@ -60,8 +66,8 @@ class UniversalAttack(Attack):
         print("###############################################")
 
         # create dir
-        Path(os.path.join(self.cfg.current_dir, self.name)).mkdir(parents=True, exist_ok=True)
-        main_dir = os.path.join(self.cfg.current_dir, self.name)
+        Path(os.path.join(self.cfg.current_dir,name)).mkdir(parents=True, exist_ok=True)
+        main_dir = os.path.join(self.cfg.current_dir,name)
         Path(os.path.join(main_dir, "images")).mkdir(parents=True, exist_ok=True)
 
         results_combine = pd.DataFrame()
@@ -73,6 +79,7 @@ class UniversalAttack(Attack):
                         'val': []}
 
         for epoch in range(self.cfg.epochs):
+            self.scheduler.step(epoch=epoch)
 
             train_loss = []
             avg_outliers = []
@@ -104,16 +111,21 @@ class UniversalAttack(Attack):
 
                 # Collect the element-wise sign of the data gradient
                 sign_data_grad = self._compute_perturbation(adv_pert_cpu, _, _)
+
                 perturbed_patch = adv_pert_cpu.to(self.attack.device) - self.attack.eps_step * sign_data_grad
-                adv_pert_cpu = torch.clamp(perturbed_patch, -3, 3).detach()
+
+                adv_pert_cpu = torch.clamp(perturbed_patch, self.attack.clip_min, self.attack.clip_max).detach()
 
                 adv_pert_cpu = self._projection(adv_pert_cpu)
 
-                adv_pert_cpu.data.clamp_(-3, 3)
+                adv_pert_cpu.data.clamp_(self.attack.clip_min, self.attack.clip_max)
 
+                if i_batch != 0:
+                    avg_outliers = avg_outliers[1:]
+                avg = sum(avg_outliers) / len(avg_outliers)
                 progress_bar.set_postfix_str(
                     "Batch Loss: {:.6} | Avg_Outliers: {} ".format(sum(train_loss) / (i_batch + 1),
-                                                                   round(sum(avg_outliers) / len(avg_outliers), 2)))
+                                                                   round(avg, 2)))
 
                 if self.save_changes and i_batch == 0:
                     save_image(self.denormalize(
@@ -142,7 +154,7 @@ class UniversalAttack(Attack):
                 results_combine = pd.concat([results_combine, results], axis=0)
                 results_combine.to_csv(os.path.join(main_dir, self.csv_name), index=False)
 
-                if batch_id % 10 == 0:
+                if batch_id % 2 == 0:
                     img1 = batch
                     img2 = images_with_pert
 
@@ -179,10 +191,8 @@ class UniversalAttack(Attack):
         return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
 
     def apply_perturbation(self, images, adv_pert):
-
-        adv_batch = images + adv_pert  # no need to multiply by step because it happens in the optimizer.step
-
-        adv_batch.data.clamp_(-3, 3)
+        adv_batch = images + adv_pert
+        adv_batch.data.clamp_(-1, 1)
         return adv_batch
 
     def _projection(self, values):
@@ -211,6 +221,9 @@ class UniversalAttack(Attack):
 
     def _compute_perturbation(self, adv_x, targets, momentum):
         grad = adv_x.grad.to(self.attack.device)
+
+        if self.cfg.mask_option is not None:
+            grad = torch.where(self.cfg.mask == 0.0, torch.tensor(0.0).to(self.cfg.device), grad)
         tol = 10e-8
         # Apply norm
         if self.attack.norm == "inf":
@@ -260,10 +273,10 @@ class UniversalAttack(Attack):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
-    parser.add_argument('--accuracy_loss', type=float, default=0, help='Weight for accuracy loss')
+    parser.add_argument('--accuracy_loss', type=float, default=50, help='Weight for accuracy loss')
     parser.add_argument('--TV_loss', type=float, default=0, help='Weight for Total Variation loss')
-    parser.add_argument('--cls', type=str, default='n01495701',
-                        help='class to attack')  # ["n01495701", "n01531178", "n01644900", "n01688243", "n06874185"]
+    parser.add_argument('--cls', type=str, default='n01531178',
+                        help='class to attack')  # ["n01531178", "n01531178", "n01644900", "n01688243", "n06874185"]
     print(parser.parse_args())
     return parser.parse_args()
 
@@ -307,6 +320,7 @@ def Class_main():
 
 
 if __name__ == '__main__':
-    ##############################
+    #############################
+    # #
     main()
     # Class_main()
