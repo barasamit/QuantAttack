@@ -5,5 +5,22 @@
 2. many_to_many_attack.py
 3. univeral_attack.py
 
+# Install Bitsandbytes
+1. conda create -n AmitTest5 python=3.9
+2. conda activate AmitTest5
+3. conda install cudatoolkit
+4. pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+5. pip install transformers
+6. pip install accelerate
+7. pip install datasets
+8. pip install bitsandbytes
+9. pip install pandas
+10. pip install fvcore
+
+
+
+
+
+
 
 
