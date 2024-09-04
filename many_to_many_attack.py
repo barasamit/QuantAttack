@@ -65,15 +65,13 @@ class ManyToManyAttack(Attack):
                 # save adv images
                 if self.cfg.model_name in ["VIT", "DeiT", "Owldetection", "Detr", "yolos", "git", "VIT_large",
                                            'DeiT_large', 'yolos_base', 'VIT_384', 'BEiT_base', 'BEiT_large',
-                                           'swin_base', 'swin_tiny']:
-                    save_image(self.denormalize(adv_x, self.model_mean, self.model_std),
-                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.jpg"))
+                                           'swin_base', 'swin_tiny',"ptq4vit","RepQ"]:
+                    save_image(self.denormalize(adv_x, self.model_mean, self.model_std),os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.png"))
+                    save_image(self.denormalize(attack_images, self.model_mean, self.model_std),os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "clean.png"))
+
                     torch.save(adv_x, os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "adv.pt"))
-                    save_image(self.denormalize(attack_images, self.model_mean, self.model_std),
-                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "clean.jpg"))
                     torch.save(attack_images, os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "clean.pt"))
-                    torch.save(adv_x[0] - attack_images[0],
-                               os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "perturbation_torch.pt"))
+                    torch.save(adv_x[0] - attack_images[0],os.path.join(self.attack_dir, img_dir.split("/")[-1] + "_" + "perturbation_torch.pt"))
                 else:  # without normalization
                     save_image(adv_x, os.path.join(self.attack_dir, str(batch_id) + "_" + "adv.jpg"))
                     torch.save(adv_x, os.path.join(self.attack_dir, str(batch_id) + "_" + "adv.pt"))
@@ -106,7 +104,7 @@ class ManyToManyAttack(Attack):
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
     parser.add_argument('--accuracy_loss', type=float, default=0, help='Weight for accuracy loss')
-    parser.add_argument('--Mean_loss', type=float, default=0, help='Weight for Total Variation loss')
+    parser.add_argument('--Mean_loss', type=float, default=0, help='Weight for mean loss')
     parser.add_argument('--start', type=int, default=0, help='where to start from')
     return parser.parse_args()
 
@@ -119,7 +117,6 @@ def main():
 
     accuracy_loss = args.accuracy_loss
     Mean_loss = args.Mean_loss
-
     start_from = args.start
 
 
@@ -129,85 +126,6 @@ def main():
     attack = ManyToManyAttack(cfg)
 
     attack.generate(1000,start_from)  # generate k batches
-
-
-# def main_iter_2():
-#     norm_list = [2]
-#     eps_list = [500]
-#     eps_step_list = [0.05, 0.1, 1, 3, 5]
-#     targeted_list = [True]
-#     max_iter_list = [1200]
-#     num_topk_values_list = [4]
-#     choice_list = [0, 1, 2]
-#
-#     # create grid search for attack parameters
-#     for norm, eps, eps_step, targeted, max_iter, num_topk_values in product(norm_list, eps_list, eps_step_list,
-#                                                                             targeted_list, max_iter_list,
-#                                                                             num_topk_values_list):
-#         attack_params = {
-#             'norm': norm,
-#             'eps': eps,
-#             'eps_step': eps_step,
-#             'decay': None,
-#             'max_iter': max_iter,
-#             'targeted': targeted,
-#             'num_random_init': 1,
-#             'device': "cuda"
-#         }
-#         for k, v in attack_params.items():
-#             print(k, v)
-#
-#         config_type = 'ManyToMany'
-#         cfg = config_dict[config_type]()
-#         cfg.attack_params = attack_params
-#         cfg.num_topk_values = num_topk_values
-#         cfg.choice = 0
-#
-#         attack = ManyToManyAttack(cfg)
-#         # if os.path.exists(attack.attack_dir):
-#         #     continue
-#
-#         attack.generate(5)  # generate 100 batches
-#         print("#############################################")
-
-
-# def main_iter_inf():
-#     norm_list = ["inf"]
-#     eps_list = [10]
-#     eps_step_list = [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
-#     max_iter_list = [1200]
-#     num_topk_values_list = [4]
-#     targeted_list = [True]
-#
-#     # create grid search for attack parameters
-#     for norm, eps, eps_step, targeted, max_iter, num_topk_values in product(norm_list, eps_list, eps_step_list,
-#                                                                             targeted_list, max_iter_list,
-#                                                                             num_topk_values_list):
-#         attack_params = {
-#             'norm': norm,
-#             'eps': eps,
-#             'eps_step': eps_step,
-#             'decay': None,
-#             'max_iter': max_iter,
-#             'targeted': targeted,
-#             'num_random_init': 1,
-#             'device': "cuda"
-#         }
-#         for k, v in attack_params.items():
-#             print(k, v)
-#
-#         config_type = 'ManyToMany'
-#         cfg = config_dict[config_type]()
-#         cfg.attack_params = attack_params
-#         cfg.num_topk_values = 4
-#         cfg.choice = 0
-#
-#         attack = ManyToManyAttack(cfg)
-#         # if os.path.exists(attack.attack_dir): continue
-#         #
-#         attack.generate(5)  # generate 100 batches
-#         print("#############################################")
-#
 
 
 if __name__ == '__main__':

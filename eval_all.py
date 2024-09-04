@@ -24,33 +24,45 @@ def denormalize(x, mean=None, std=None):
     return torch.clamp(ten, 0, 1).permute(3, 0, 1, 2)
 
 
-path_dict = {1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/vit/inf_0.06274509803921569_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
-             2: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/vit/inf_0.06274509803921569_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
-             3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 0.0, 0.0]]_70/",
-             4: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 25.0, 0.0]]_70/",
-             5: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 100.0, 0.0]]_70/",
-             6: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 75.0, 0.0]]_70/",
-             7: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/acc/inf_0.06274509803921569_0.002_True_2998_4_1_VIT_[[1, 250.0, 0.0]]_70/",
-             8: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.047058823529411764_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
-             9: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.12549019607843137_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
-             10: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/ablation_study/epsilons/inf_0.03137254901960784_0.002_True_2999_4_1_VIT_[[1, 50.0, 0.0]]_70/",
-             11: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/Final_results/baselines/Normal_PGD/normal_pgd_vit/",
-             }
+path_dict = {
+    1: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/yolos_Quant/experiments/September/inf_0.06274509803921569_0.002_True_3000_4_1_yolos_[[1, 50, 0]]_70/",
+    2:  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/Owldetection_Quant/experiments/September/inf_0.06274509803921569_0.002_True_3000_4_1_Owldetection_[[1, 50, 0]]_70/",
+    3: "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/git_Quant/experiments/September/inf_0.06274509803921569_0.002_True_1000_4_1_git_[[1, 50, 0]]_70/",
+    4:  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/Whisper_Quant/experiments/September/inf_0.06274509803921569_0.002_True_3000_4_1_Whisper_[[1, 0, 0]]_70/"
 
 
+    }
 
 parser = argparse.ArgumentParser(description='Process some paths.')
-parser.add_argument('--num',default=1,type=int, help='Number Path to the data directory')
-args = parser.parse_args()
+parser.add_argument('--num', default=1, type=int, help='Number Path to the data directory')
+parser.add_argument('--uni', default=1, type=int, help="universal attack")
 
+args = parser.parse_args()
 
 results_combine = pd.DataFrame()
 config_type = 'ManyToMany'
 cfg = config_dict[config_type]()
 attack = Attack(cfg)
+# cfg.model_name = "DeiT"
 model_name = cfg.model_name
 
-csv_name = f"eval_all.csv"
+# uni_attak = {1: ("with_universal_patch54.csv",
+#                  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/February/Universal_left_upper54_lr_0.02_epsilon_10000001.0_norm_inf_weights[[1, 50.0, 0.0]]_nameVIT_images_200.csv/perturbation_torch.pt"),
+#              2: ("with_universal_patch64.csv",
+#                  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/February/Universal_left_upper64_lr_0.02_epsilon_10000001.0_norm_inf_weights[[1, 50.0, 0.0]]_nameVIT_images_200.csv/perturbation_torch.pt"),
+#              3: ("with_universal_16_255.csv",
+#                  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/February/Universal_None_lr_0.0002_epsilon_0.062745101749897_norm_inf_weights[[1, 50.0, 0.0]]_nameVIT_images_250.csv/perturbation_torch.pt"),
+#              4: ("with_universal_32_255.csv",
+#                  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/February/Universal_None_lr_0.002_epsilon_0.125490203499794_norm_inf_weights[[1, 50.0, 0.0]]_nameVIT_images_248.csv/perturbation_torch.pt"),
+#              5: ("with_universal_64_255.csv",
+#                  "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/February/Universal_None_lr_0.002_epsilon_0.250980406999588_norm_inf_weights[[1, 50.0, 0.0]]_nameVIT_images_248.csv/perturbation_torch.pt")}
+
+uni_data = path_dict[args.num]
+# csv_name = uni_data[0]
+csv_name = "eval_all.csv"
+# if args.num == 2:
+#     csv_name = "Ensemble_test_vit.csv"
+print(csv_name)
 path = path_dict[args.num]
 main_dir = path
 if os.path.exists(os.path.join(main_dir, csv_name)):
@@ -61,9 +73,9 @@ old_columns = ['batch_id', "img_dir", "clean_power_usage", "clean_CUDA_time", "c
 columns = old_columns + ["random", "adv"]
 # columns = old_columns + ["adv"]
 universal_patch = None
+# universal_patch = "/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/March/Universal_None_lr_0.002_epsilon_0.125490203499794_norm_inf_weights[[1, 50.0, 0.0]]_nameDeiT_images_250.csv/perturbation_torch.pt"
 # if model_name in ["VIT", "DeiT"]:
-#     universal_patch = torch.load(
-#         "/dt/shabtaia/dt-fujitsu/8_bit_attack/final_results/Universal/VIT/lr_0.002_epsilon_0.8_weights[[1, 50.0, 0.01]]_nameVIT.csv/perturbation_torch.pt")
+#     universal_patch = torch.load(universal_patch)
 #     columns = old_columns + ["random", "Universal", "adv"]
 
 # Lists to store the filenames
@@ -99,7 +111,7 @@ for i, file in enumerate(tqdm(clean_files)):
         res = attack.compute_success2(file_clean, [random_image, universal_image, file_adv], i, "")
 
     else:
-        res = attack.compute_success2(file_clean, [random_image,file_adv], i, "", ids=ids) #[random_image, file_adv]
+        res = attack.compute_success2(file_clean, [random_image, file_adv], i, "", ids=ids)  # [random_image, file_adv]
     res.columns = columns
     results_combine = pd.concat([results_combine, res], axis=0)
     # replace columns names

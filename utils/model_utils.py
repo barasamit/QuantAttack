@@ -3,28 +3,34 @@ import torchvision
 from transformers import AutoImageProcessor, ViTForImageClassification, BeitForImageClassification, \
     SwinForImageClassification
 
-from transformers import AutoFeatureExtractor, WhisperForAudioClassification
-from transformers import OwlViTProcessor, OwlViTForObjectDetection
+from transformers import AutoFeatureExtractor, WhisperForAudioClassification, BitsAndBytesConfig
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
 from transformers import DetrImageProcessor, DetrForObjectDetection
 from transformers import YolosFeatureExtractor, YolosForObjectDetection
 from transformers import VisionEncoderDecoderModel, ViTImageProcessor, AutoTokenizer
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from transformers import AutoProcessor, AutoModelForCausalLM
+from load_ptq4vit import get_ptq4vit_net
+from load_RepQ_ViT import get_RepQ_ViT_net
 
 def get_model(cfg, model_name):
     model = None
     if model_name == 'VIT':
-        model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",
-                                                          load_in_8bit=True)  # for large model, replace "base" with "large" -> google/vit-large-patch16-224
+        model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224', device_map="auto",load_in_8bit=True,llm_int8_threshold = 6.0)  # for large model, replace "base" with "large" -> google/vit-large-patch16-224
         # model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
+    elif model_name == 'VIT_tiny':
+        model = ViTForImageClassification.from_pretrained("WinKawaks/vit-tiny-patch16-224", device_map="auto",load_in_8bit=True,llm_int8_threshold = 6.0)
+    elif model_name == 'VIT_small':
+        model = ViTForImageClassification.from_pretrained("WinKawaks/vit-small-patch16-224", device_map="auto",load_in_8bit=True,llm_int8_threshold = 6.0)
+    elif model_name == 'VIT_large':
+        model = ViTForImageClassification.from_pretrained('google/vit-large-patch16-224', device_map="auto",load_in_8bit=True,llm_int8_threshold = 6.0)
     elif model_name == 'DeiT':
         model = ViTForImageClassification.from_pretrained("facebook/deit-base-patch16-224",
                                                            device_map="auto",
                                                            load_in_8bit=True)
     elif model_name == 'Whisper':
-        model = WhisperForAudioClassification.from_pretrained("openai/whisper-tiny", device_map="auto",
-                                                              load_in_8bit=True)
+        model = WhisperForAudioClassification.from_pretrained("sanchit-gandhi/whisper-medium-fleurs-lang-id", device_map="auto",
+                                                              load_in_8bit=True) # "openai/whisper-tiny"
 
     elif model_name == 'Owldetection':
         model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16", device_map="auto",
@@ -69,10 +75,18 @@ def get_model(cfg, model_name):
     elif model_name == 'swin_base':
         model = SwinForImageClassification.from_pretrained("microsoft/swin-base-patch4-window7-224", device_map="auto",
                                                    load_in_8bit=True)
-    elif model_name == 'other':
-        model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch16", device_map="auto",
-                                                         load_in_8bit=True)
-    model.eval()
+    elif model_name == 'ptq4vit':
+        model = get_ptq4vit_net()
+    elif model_name == 'RepQ':
+        model = get_RepQ_ViT_net()
+
+
+
+
+    # elif model_name == 'other':
+    #     model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch16", device_map="auto",
+    #                                                      load_in_8bit=True)
+    # model.eval()
     return model
 
 
@@ -81,14 +95,20 @@ def get_model_feature_extractor(model_name):
     dct = {}
     # dct = {"image_mean": [0.485, 0.456, 0.406],
     #          "imag`e_std": [0.229, 0.224, 0.225]}
-    if model_name == 'VIT':
+    if model_name in ['VIT',"ptq4vit","RepQ"]:
         feature_extractor = AutoImageProcessor.from_pretrained('google/vit-base-patch16-224', **dct)
+    elif model_name == 'VIT_tiny':
+        feature_extractor = AutoImageProcessor.from_pretrained('WinKawaks/vit-tiny-patch16-224')
+    elif model_name == 'VIT_small':
+        feature_extractor = AutoImageProcessor.from_pretrained('WinKawaks/vit-small-patch16-224')
+    elif model_name == 'VIT_large':
+        feature_extractor = AutoImageProcessor.from_pretrained('google/vit-large-patch16-224')
 
     elif model_name == 'DeiT':
         feature_extractor = AutoImageProcessor.from_pretrained("facebook/deit-base-patch16-224", **dct)
 
     elif model_name == 'Whisper':
-        feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-tiny", **dct)
+        feature_extractor = AutoFeatureExtractor.from_pretrained("sanchit-gandhi/whisper-medium-fleurs-lang-id", **dct) # openai/whisper-tiny
 
     elif model_name == 'Owldetection':
         feature_extractor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16")

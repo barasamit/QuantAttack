@@ -83,6 +83,8 @@ class UniversalAttack(Attack):
                 if file.split("_")[-2] != self.cls:
                     continue
 
+            adv_pert_cpu = torch.load("/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/experiments/March/Universal_None_lr_0.002_epsilon_0.125490203499794_norm_inf_weights[[1, 50.0, 0.0]]_nameDeiT_images_250.csv/perturbation_torch.pt")
+
             dir = os.path.join(main_dir, "new_" + self.csv_name)
             num_rows = None
             # to skip already computed images
@@ -280,5 +282,5 @@ def Class_main():
 
 if __name__ == '__main__':
     ##############################
-    # main()
-    Class_main()
+    main()
+    # Class_main()

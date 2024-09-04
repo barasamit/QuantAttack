@@ -14,7 +14,7 @@ from losses import Loss
 from torch.profiler import profile, record_function, ProfilerActivity
 # from fvcore.nn import flop_count
 import warnings
-import GPUtil
+# import GPUtil
 from utils.attack_utils import count_outliers
 import pynvml
 
@@ -28,7 +28,7 @@ class Attack:
         self.cfg.attack_type = self.__class__.__name__
         self.second_model = None
         self.model = get_model(cfg, self.cfg['model_name'])
-        if self.cfg['second_model_name'] is not None:
+        if self.cfg['second_model_name'] is not None and self.cfg['second_model_name'] != False:
             self.second_model = get_model(cfg, self.cfg['second_model_name'])
             for name, module in self.second_model.named_modules():
                 module.register_forward_hook(hook_fn)
@@ -103,9 +103,12 @@ class Attack:
             p_adv = self.model(x_adv.half())
             results_c = feature_extractor.post_process_object_detection(p_clean, threshold=0.9)[0]
             results_adv = feature_extractor.post_process_object_detection(p_adv, threshold=0.9)[0]
-
-        p_clean_indx = p_clean.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
-        p_adv_indx = p_adv.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
+        try:
+            p_clean_indx = p_clean.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
+            p_adv_indx = p_adv.logits.argmax(-1)  # model predicts one of the 1000 ImageNet classes
+        except:
+            p_clean_indx = p_clean.argmax(-1)  # model predicts one of the 1000 ImageNet classes
+            p_adv_indx = p_adv.argmax(-1)  # model predicts one of the 1000 ImageNet classes
         top1 = torch.equal(p_clean_indx, p_adv_indx)
 
         try:
@@ -123,10 +126,10 @@ class Attack:
     #     flops, _ = flop_count(self.model, x)
     #     return sum(flops.values())
 
-    def get_gpu_temperature(self):
-        gpus = GPUtil.getGPUs()
-        gpu_temperature = gpus[0].temperature
-        return gpu_temperature
+    # def get_gpu_temperature(self):
+    #     gpus = GPUtil.getGPUs()
+    #     gpu_temperature = gpus[0].temperature
+    #     return gpu_temperature
 
     def measure_gpu_power(self, handle, iterr=10):
         before_energy = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
@@ -144,20 +147,25 @@ class Attack:
                 outliers_arr_local.clear()
                 try:
                     self.model(x).logits.sum().item()
+
+                # except:
+                #     outliers_arr_local.clear()
+                #     self.model(x).sum().item()
                     # self.model(input_ids = torch.randint(0, 100, (10,10)),pixel_values=x)
                 except:
                     # self.model(x).logits.sum().item()
                     # if (self.ids is None) or (self.ids == []) or (self.ids == torch.tensor([0])):
-                    if (self.ids is None) or (self.ids == []) :
+                    if (self.ids is None) or (self.ids == []):
 
                         with torch.no_grad():
+                            # self.model(input_ids=self.ids[0], pixel_values=x)
                             self.model(x.half())
                     else:
                         with torch.no_grad():
                             try:
                                 self.model(input_ids=self.ids[0], pixel_values=x)
                             except:
-                                self.model(input_ids=torch.randint(0, 100, (10, 10)), pixel_values=x)
+                                self.model(input_ids = torch.randint(0, 1, (2, 16)), pixel_values=x)
 
                 self.outliers = count_outliers(outliers_arr_local,
                                                threshold=self.cfg.model_threshold)
@@ -187,18 +195,18 @@ class Attack:
 
         self.ids = ids
 
-        def gpu_warm_up():
-            for _ in range(2):
-                pynvml.nvmlInit()
-                handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-                before_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
-                # empty tensor size (1,3,224,224)to warm up GPU
-                # tensor = torch.zeros((1, 3, 224, 224)).cuda()
-                _ = self.calc_GPU_CPU_time_memory(x_clean)
-                after_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
-            torch.cuda.synchronize()
+        # def gpu_warm_up():
+        #     for _ in range(2):
+        #         pynvml.nvmlInit()
+        #         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        #         before_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+        #         # empty tensor size (1,3,224,224)to warm up GPU
+        #         # tensor = torch.zeros((1, 3, 224, 224)).cuda()
+        #         _ = self.calc_GPU_CPU_time_memory(x_clean)
+        #         after_energy_clean = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
+        #     torch.cuda.synchronize()
 
-        gpu_warm_up()
+        # gpu_warm_up()
         outliers_arr_local.clear()
 
         # Initialize variables to accumulate measurements
@@ -220,11 +228,11 @@ class Attack:
         num_measurements = 1  # Number of times to repeat the calculation
 
         for _ in range(num_measurements):
-            # break
+            break
 
             # Measure adversarial example
             try:
-                self.flag = True
+
                 before_energy_adv = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)
                 cpu_time_adv, cuda_time_adv, cpu_mem_adv, cuda_mem_adv = self.calc_GPU_CPU_time_memory(x_adv)
                 after_energy_adv = pynvml.nvmlDeviceGetTotalEnergyConsumption(handle)

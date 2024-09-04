@@ -22,17 +22,18 @@ class BaseConfig:
         self.save_path = '/dt/shabtaia/dt-fujitsu/8_bit_attack/Second_submission/'
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model_name = 'VIT'  # DeiT, VIT,BEiT,swin_tiny,swin_base Whisper, Owldetection ,Detr, yolos,gpt2,blip,git, other
+        model_name = 'VIT'  #'ptq4vit',RepQ, DeiT, VIT,BEiT,swin_tiny,swin_base Whisper, Owldetection ,Detr, yolos,gpt2,blip,git, other
+        model_quant = "Quant_ensemble_static" # Quant, No_Quant
+
         self.model_name = model_name
-        self.second_model_name = None  # DeiT, VIT, Whisper, Owldetection ,Detr, other
+        self.second_model_name = "ptq4vit"  # DeiT, VIT, Whisper, Owldetection ,Detr, other
 
         model_config = {'VIT': 0, 'DeiT': 0,'BEiT_large':1,'BEiT_base':1,  'Whisper': 1, 'Owldetection': 2, 'Detr': 1, 'yolos': 1,"yolos_base":1, 'gpt2': 3,
                         'blip': 3,'swin_tiny': 1,'swin_base':1,
-                        "git": 4, 'VIT_large': 0,'VIT_384': 0, 'DeiT_large': 0, "other": 4}  # 0p
+                        "git": 4, 'VIT_large': 0,'VIT_384': 0, 'DeiT_large': 0, "ptq4vit": 0,"RepQ":0,"VIT_small":0,"VIT_large": 0,"VIT_tiny":0}  # 0p
 
-        loss_param_config ={'VIT': [1, 50, 0.01]} #the loss param config is from the main  #{'VIT': [1, 50, 0.01], 'DeiT': [1, 50, 0.01],'BEiT_large': [1, 50, 0.01], 'BEiT_base': [1, 50, 0.01],'Whisper': [1, 0, 0],
-                             #'Owldetection': [1, 0, 0], 'Detr': [1, 0, 0], 'yolos': [1, 0, 0], 'yolos_base': [1, 0, 0],'gpt2': [1, 0, 0],
-                             #'blip': [1, 0, 0], 'git': [1, 0, 0], 'VIT_large': [1, 0, 0],'VIT_384': [1, 0, 0], 'DeiT_large': [1, 0, 0]}
+        loss_param_config ={'VIT': [1, 50, 0.01]}
+
         self.model_config_num = model_config[model_name]
 
         print("Using model: ", model_name)
@@ -45,39 +46,40 @@ class BaseConfig:
         # 0 - loss, 1 - loss on the accuracy, 2 - loss on the total variation [1, 50, 0.01]
 
         # Mask: implement only for UniversalAttack
-        self.mask_option = None # None,"left_upper64", 'left_upper16', 'left_upper32',  'one_pixel', two_pixel', four_pixel'
+        self.mask_option = None  # None,"left_upper64", "left_upper54",'left_upper16', 'left_upper32',  'one_pixel', two_pixel', four_pixel'
 
         epsilon = 16/255 # 16/255,32/255 12/255
         eps_step = 0.002
 
         if self.mask_option is not None:
             epsilon = 10000001
-            eps_step = eps_step * 10
+            eps_step = 1
             self.image_size, self.image_size = 224, 224
 
 
         clip_values = (-1,1) if model_name in ["VIT", "DeiT"] else (-3, 3)
+        normalized_std = [0.485, 0.456, 0.406] if model_name in ["ptq4vit","RepQ"] else None
         self.attack_params = {
             'norm': "inf",  # "inf", 2, 1
             'eps': epsilon,
             'eps_step': eps_step,
             'decay': None,
-            'max_iter': 10,
+            'max_iter':3000,
             'targeted': True,
             'num_random_init': 1,
             'device': self.device,
             'clip_values': clip_values,
-            "normalized_std": None,  # [0.485, 0.456, 0.406] for imagenet
+            "normalized_std": normalized_std,  # [0.485, 0.456, 0.406] for imagenets
         }
 
         ##################################################################################
         # Universal attack
         self.initial_patch = "zeros"  # "random" ,"zero", "ones"
         self.image_size = 224
-        self.epochs = 1000
-        self.number_of_training_images = 200
+        self.epochs = 200
+        self.number_of_training_images = 250
         self.number_of_val_images = 50
-        self.number_of_test_images = 10
+        self.number_of_test_images = 100
         ##################################################################################
 
         self.max_iter = self.attack_params['max_iter']
@@ -91,12 +93,12 @@ class BaseConfig:
             'num_workers': 6
         }
 
-        self.model_threshold = 6
-        self.model_threshold_dest = 7
-        self.bottom_threshold = 2
-        self.target = 70
+        self.model_threshold = 6  # 6
+        self.model_threshold_dest = 7 #7
+        self.bottom_threshold = 2 #2
+        self.target = 70 #70
 
-        self.num_topk_values = 4
+        self.num_topk_values = 4 # 4
         print("num_topk_values: ", self.num_topk_values)
         self.choice = 0  # 0: topk for each column for each layer, 1: top k from small layers(782)->In reference to all without division , 2: same as 1 but also for large layers(3072)
 
@@ -109,6 +111,9 @@ class BaseConfig:
 
         with open(ROOT / 'configs/attack_config.yaml', 'r') as stream:
             self.attack_config = yaml.safe_load(stream)[self.attack_name]
+
+        n = f"{model_name}_{model_quant}"
+        self.save_path = os.path.join(self.save_path,n)
 
         self._update_current_dir()
 

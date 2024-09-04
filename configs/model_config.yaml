@@ -2,6 +2,13 @@ VIT:
   model_path: 'google/vit-base-patch16-224'
   weights_path: 'add later'
 
+ptq4vit:
+  model_path: 'google/vit-base-patch16-224'
+  weights_path: 'add later'
+
+RepQ:
+  model_path: 'google/vit-base-patch16-224'
+  weights_path: 'add later'
 
 DeiT:
   model_path: 'facebook/deit-base-distilled-patch16-224'
@@ -43,13 +50,18 @@ git:
 VIT_large:
     model_path: "zz"
     weights_path: 'add later'
+
 VIT_384:
     model_path: "zz"
     weights_path: 'add later'
+VIT_tiny:
+    model_path: "zz"
+    weights_path: 'add later'
+
 DeiT_large:
     model_path: "zz"
     weights_path: 'add later'
-BEiT_large:
+VIT_small:
     model_path: "zz"
     weights_path: 'add later'
 BEiT_base:
@@ -61,6 +73,9 @@ swin_tiny:
 swin_base:
     model_path: "zz"
     weights_path: 'add later'
+
+
 other:
   model_path: 'SenseTime/deformable-detr'
   weights_path: 'add later'
+

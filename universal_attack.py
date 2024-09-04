@@ -79,7 +79,7 @@ class UniversalAttack(Attack):
                         'val': []}
 
         for epoch in range(self.cfg.epochs):
-            self.scheduler.step(epoch=epoch)
+            # self.scheduler.step(epoch=epoch)
 
             train_loss = []
             avg_outliers = []
@@ -273,7 +273,7 @@ class UniversalAttack(Attack):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
-    parser.add_argument('--accuracy_loss', type=float, default=50, help='Weight for accuracy loss')
+    parser.add_argument('--accuracy_loss', type=float, default=0, help='Weight for accuracy loss')
     parser.add_argument('--TV_loss', type=float, default=0, help='Weight for Total Variation loss')
     parser.add_argument('--cls', type=str, default='n01531178',
                         help='class to attack')  # ["n01531178", "n01531178", "n01644900", "n01688243", "n06874185"]
