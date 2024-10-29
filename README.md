@@ -93,8 +93,6 @@ python single_eval_only.py
 
 ## Results
 
-[Add key results, graphs, or performance metrics here]
-
 ## Contributing
 
 We welcome contributions! Please feel free to submit a Pull Request.
