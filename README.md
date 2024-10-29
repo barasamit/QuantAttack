@@ -21,7 +21,6 @@ To address this problem, quantization techniques (i.e., low-bit-precision repres
 
 In contrast, dynamic quantization techniques, which have become increasingly popular, adapt during inference based on the input provided while maintaining full-precision performance. However, their dynamic behavior and average-case performance assumption make them vulnerable to a novel threat vector – adversarial attacks that target the model's efficiency and availability.
 
-![Attack Overview](link_to_image)
 
 ## Getting Started
 
@@ -29,7 +28,7 @@ In contrast, dynamic quantization techniques, which have become increasingly pop
 
 - CUDA-capable GPU
 - Python 3.8+
-- PyTorch 2.0+
+- PyTorch
 
 ### Installation
 
