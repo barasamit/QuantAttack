@@ -26,7 +26,9 @@ class BaseConfig:
         model_quant = "Quant_ensemble_static" # Quant, No_Quant
 
         self.model_name = model_name
-        self.second_model_name = "ptq4vit"  # DeiT, VIT, Whisper, Owldetection ,Detr, other
+        self.second_model_name = None  # DeiT, VIT, Whisper, Owldetection ,Detr, other
+
+        self.third_model_name = None
 
         model_config = {'VIT': 0, 'DeiT': 0,'BEiT_large':1,'BEiT_base':1,  'Whisper': 1, 'Owldetection': 2, 'Detr': 1, 'yolos': 1,"yolos_base":1, 'gpt2': 3,
                         'blip': 3,'swin_tiny': 1,'swin_base':1,
@@ -149,6 +151,7 @@ class BaseConfig:
         self.dataset_config['dataset_name'] = dataset_name
 
     def _set_mask(self):
+        "Create mask for Universal attack - only attack part of the image"
         if self.mask_option is None:
             self.patch_size = None
             mask = torch.ones((1, 3, self.image_size, self.image_size), device=self.device)

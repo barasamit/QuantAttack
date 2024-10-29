@@ -18,7 +18,7 @@ pd.set_option('display.max_columns', 10)
 
 class Loss:
 
-    def __init__(self, model, loss_fns, convert_fn, cfg, second_model, images_save_path=None, mask=None,
+    def __init__(self, model, loss_fns, convert_fn, cfg, second_model,third_model, images_save_path=None, mask=None,
                  weights=None, iteration=0,
                  **kwargs) -> None:
         super().__init__()
@@ -29,12 +29,17 @@ class Loss:
         if self.second_model is not None:
             self.second = True
 
+        self.third_model = third_model
+        self.third = False
+        if self.third_model is not None:
+            self.third = True
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_fns = loss_fns
         self.convert_fn = convert_fn
         self.images_save_path = images_save_path
         self.mask = mask
-        self.tv = TotalVariation().to(self.device)
+        # self.tv = TotalVariation().to(self.device)
         self.iteration = iteration
         self.max_iter = cfg.attack_params["max_iter"]
         self.attack_type = cfg.attack_type
@@ -102,7 +107,7 @@ class Loss:
 
         # for combine models
 
-        pred, second = self.predict(x_grad, ids,self.second)
+        pred, second = self.predict(x_grad, ids,self.second,self.third)
         matmul_lists = input_arr.copy()
 
         self.iteration += 1
@@ -139,14 +144,24 @@ class Loss:
             x_grad = x.clone().detach().requires_grad_(True)
         return x_grad
 
-    def predict(self, x_grad, ids, second=False):
-        second = second
+    def predict(self, x_grad, ids, second=False,third=False):
         if self.cfg.model_config_num == 0:
             if second:
-                if random.random() < 0.5:
-                    pred = self.model(x_grad)
+                if third:
+                    # randomly select the model to use
+                    number = random.choice([1, 2, 3])
+                    if number == 1:
+                        pred = self.model(x_grad)
+                    elif number == 2:
+                        pred = self.second_model(x_grad)
+                    else:
+                        pred = self.third_model(x_grad)
+
                 else:
-                    pred = self.second_model(x_grad)
+                    if random.random() < 0.5:
+                        pred = self.model(x_grad)
+                    else:
+                        pred = self.second_model(x_grad)
             else:
                 pred = self.model(x_grad)
         elif self.cfg.model_config_num == 1:
@@ -186,15 +201,15 @@ class Loss:
 
     def add_various_losses(self, loss, loss_fn, loss_weight, inputs, targets, x_grad, y, ids, second, pred):
         for i in range(len(inputs)):
-            # temp_loss = loss_fn(inputs[i], targets[i]).squeeze().mean()
-            # loss.add_(loss_weight[0] * temp_loss)
-            # del temp_loss
-            try:
-                temp_loss = -inputs[i].mean()
-                loss.add_(loss_weight[0] * temp_loss)
-                del temp_loss
-            except:
-                pass
+            temp_loss = loss_fn(inputs[i], targets[i]).squeeze().mean()
+            loss.add_(loss_weight[0] * temp_loss)
+            del temp_loss
+            # try:
+            #     temp_loss = -inputs[i].mean()
+            #     loss.add_(loss_weight[0] * temp_loss)
+            #     del temp_loss
+            # except:
+            #     pass
 
 
         #

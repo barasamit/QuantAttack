@@ -27,27 +27,22 @@ class Attack:
         self.cfg = cfg
         self.cfg.attack_type = self.__class__.__name__
         self.second_model = None
+        self.third_model = None
         self.model = get_model(cfg, self.cfg['model_name'])
         if self.cfg['second_model_name'] is not None and self.cfg['second_model_name'] != False:
             self.second_model = get_model(cfg, self.cfg['second_model_name'])
             for name, module in self.second_model.named_modules():
                 module.register_forward_hook(hook_fn)
-        # saving the relevant layers from here instead of ..../site-packages/transformers/utils/bitsandytes
+
+            if self.cfg['third_model_name'] is not None and self.cfg['third_model_name'] != False:
+                self.third_model = get_model(cfg, self.cfg['third_model_name'])
+                for name, module in self.third_model.named_modules():
+                    module.register_forward_hook(hook_fn)
+
 
         for name, module in self.model.named_modules():
             module.register_forward_hook(hook_fn)
 
-        # for param in self.model.parameters():
-        #     try:
-        #         param.requires_grad = True
-        #     except:
-        #         print(param)
-        #
-        # for param in self.model.base_model.parameters():
-        #     try:
-        #         param.requires_grad = True
-        #     except:
-        #         pass
 
         self.feature_extractor = get_model_feature_extractor(self.cfg['model_name'])
         self.model_std = [0.5, 0.5, 0.5]
@@ -62,7 +57,7 @@ class Attack:
         loss_func = get_instance(self.cfg['losses_config']['module_name'],
                                  self.cfg['losses_config']['class_name'])(**self.cfg['loss_func_params'])
 
-        self.loss = Loss(self.model, [loss_func], "", self.cfg, self.second_model, **self.cfg['loss_params'])
+        self.loss = Loss(self.model, [loss_func], "", self.cfg, self.second_model,self.third_model, **self.cfg['loss_params'])
         self.cfg['attack_params']['loss_function'] = self.loss.loss_gradient
         self.cfg['attack_params']['normalized_std'] = self.model_std
 
@@ -228,7 +223,7 @@ class Attack:
         num_measurements = 1  # Number of times to repeat the calculation
 
         for _ in range(num_measurements):
-            break
+            # break
 
             # Measure adversarial example
             try:

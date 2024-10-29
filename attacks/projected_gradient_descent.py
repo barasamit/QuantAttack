@@ -4,8 +4,7 @@ import torch
 # import optimizer
 import torch.optim as optim
 from tqdm import tqdm
-import os
-import torch.optim.lr_scheduler as lr_scheduler
+
 
 
 class ProjectedGradientDescent:
@@ -55,6 +54,7 @@ class ProjectedGradientDescent:
         # self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=50, verbose=True)
 
     def generate(self, inputs, targets, batch_info, ids=None):
+        "generate adversarial examples"
         self.ids = ids
         res = self._generate_batch(inputs, targets, batch_info)
         self.max_adv = None
@@ -104,6 +104,13 @@ class ProjectedGradientDescent:
         return x_adv
 
     def _compute_perturbation(self, adv_x, targets, momentum):
+        """
+        Compute the perturbation to be applied to the input.
+        :param adv_x: the input to perturb
+        :param targets: the target labels
+        :param momentum: the momentum to apply
+        :return: the perturbation to apply
+        """
         tol = 10e-8
         grad, loss_value, self.outliers_num = self.loss_function(adv_x, targets, self.ids)
         self.loss_values.append(loss_value)
@@ -142,6 +149,12 @@ class ProjectedGradientDescent:
         return grad
 
     def _apply_perturbation(self, adv_x, perturbation):
+        """
+        Apply the perturbation on the input.
+        :param adv_x: the input to perturb
+        :param perturbation: the perturbation to apply
+        :return: the perturbed input
+        """
         perturbation_step = self.eps_step * perturbation
         perturbation_step[torch.isnan(perturbation_step)] = 0
         adv_x = adv_x + perturbation_step
@@ -153,6 +166,11 @@ class ProjectedGradientDescent:
         return adv_x
 
     def _projection(self, values):
+        """
+        Project `values` on the L-infinity norm ball of radius `self.eps`.
+        :param values:  the perturbation to project
+        :return:the projected perturbation
+        """
         tol = 10e-8
         values_tmp = values.reshape(values.shape[0], -1)
         if self.norm == 2:
