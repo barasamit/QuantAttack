@@ -92,9 +92,6 @@ class UniversalAttack(Attack):
             for i_batch, (images, labels, _) in progress_bar:
                 if i_batch >= number_of_images:
                     break
-
-                # temp = self.model(images)
-                # continue
                 adv_pert_cpu.requires_grad_(True)
                 if len(images.shape) > 4:
                     images = images.squeeze(0)
@@ -158,7 +155,6 @@ class UniversalAttack(Attack):
                     img1 = batch
                     img2 = images_with_pert
 
-                    # img1 = img1.numpy() # TypeError: tensor or list of tensors expected, got <class 'numpy.ndarray'>
                     save_image(self.denormalize(img1),
                                os.path.join(main_dir, "images", "{}_clean.png".format(batch_id)))
                     save_image(self.denormalize(img2), os.path.join(main_dir, "images", "{}_adv.png".format(batch_id)))
@@ -274,7 +270,6 @@ class UniversalAttack(Attack):
 def parse_args():
     parser = argparse.ArgumentParser(description='Many-to-Many Attack')
     parser.add_argument('--accuracy_loss', type=float, default=0, help='Weight for accuracy loss')
-    parser.add_argument('--TV_loss', type=float, default=0, help='Weight for Total Variation loss')
     parser.add_argument('--cls', type=str, default='n01531178',
                         help='class to attack')  # ["n01531178", "n01531178", "n01644900", "n01688243", "n06874185"]
     print(parser.parse_args())
