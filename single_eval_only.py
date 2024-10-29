@@ -6,8 +6,7 @@ from tqdm import tqdm
 from attack import Attack
 import os
 import argparse
-#
-#
+
 def denormalize(x, mean=None, std=None):
     # 3, H, W, B
     if std is None:
